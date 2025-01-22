@@ -1,0 +1,19 @@
+name: Publish Bounteous.DotNet.Data
+
+on:
+  pull_request:
+    types: [ closed ]
+    branches: [ main ]
+
+jobs:
+  publish:
+    if: github.event.pull_request.merged == true
+    uses: bounteous/bounteous-common-workflows/.github/workflows/build-and-publish-to-nuget.yml@main
+    with:
+      csproj-path: './src/Bounteous.DotNet.Data/Xerris.DotNet.Data.csproj'
+      nuget-package-name: 'bounteous.dotnet.data'
+      dotnet-version: '8.0.x'
+      release-path: 'net8.0'
+    secrets:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+      NUGET_SOURCE_URI: ${{ secrets.NUGET_SOURCE_URI }}
