@@ -10,7 +10,7 @@ jobs:
     if: github.event.pull_request.merged == true
     uses: Bounteous-Inc/bounteous-dotnet-common-workflows/.github/workflows/build-and-publish-to-nuget.yml@main
     with:
-      csproj-path: './src/Bounteous.Data/Xerris.Data.csproj'
+      csproj-path: './src/Bounteous.Data/Bounteous.Data.csproj'
       nuget-package-name: 'bounteous.data'
       dotnet-version: '8.0.x'
       release-path: 'net8.0'
