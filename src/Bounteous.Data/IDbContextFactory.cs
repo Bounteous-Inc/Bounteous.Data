@@ -2,12 +2,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data;
 
-public interface IDbContextFactory<out  T> where T : DbContext
+public interface IDbContextFactory<out  T> where T : IDbContext
 {
     T Create();
 }
 
-public abstract class DbContextFactory<T> : IDbContextFactory<T> where T : DbContext
+public abstract class DbContextFactory<T> : IDbContextFactory<T> where T : IDbContext
 {
     protected readonly IConnectionBuilder ConnectionBuilder;
     protected readonly IDbContextObserver Observer;
