@@ -8,18 +8,27 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Bounteous.Core" Version="0.0.6" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.2" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.2">
+      <PackageReference Include="Bounteous.Core" Version="0.0.8" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.3" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.3">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.2" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.2" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.3" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.3" />
     </ItemGroup>
 
     <ItemGroup Condition="Exists('..\..\..\Xerris.Dotnet.Core\src\Xerris.DotNet.Core\Xerris.DotNet.Core.csproj')">
         <ProjectReference Include="..\..\..\Xerris.Dotnet.Core\src\Xerris.DotNet.Core\Xerris.DotNet.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="docs/README.md" Pack="true" PackagePath="" />
+    </ItemGroup>
+    <ItemGroup>
+      <Content Update="docs\README.md">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
     
 </Project>
