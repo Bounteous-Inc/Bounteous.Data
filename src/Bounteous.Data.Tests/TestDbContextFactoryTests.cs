@@ -1,5 +1,5 @@
+using AwesomeAssertions;
 using Bounteous.Data.Tests.Context;
-using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Moq;
 
