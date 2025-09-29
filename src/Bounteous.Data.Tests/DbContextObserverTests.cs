@@ -1,6 +1,6 @@
+using AwesomeAssertions;
 using Bounteous.Data.Tests.Context;
 using Bounteous.Data.Tests.Domain;
-using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Moq;
