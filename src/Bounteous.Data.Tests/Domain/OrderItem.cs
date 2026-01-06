@@ -3,7 +3,7 @@ using Bounteous.Data.Domain;
 
 namespace Bounteous.Data.Tests.Domain;
 
-public class OrderItem : AuditImmutableBase
+public class OrderItem : AuditBase
 {
     public Guid OrderId { get; set; }
     

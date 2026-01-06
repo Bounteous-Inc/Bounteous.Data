@@ -13,9 +13,32 @@ public class TestDbContext : DbContextBase
     public DbSet<Customer> Customers { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderItem> OrderItems { get; set; }
+    public DbSet<LegacyProduct> LegacyProducts { get; set; }
+    public DbSet<LegacyOrder> LegacyOrders { get; set; }
+    public DbSet<LegacyCategory> LegacyCategories { get; set; }
+    public DbSet<ReadOnlyLegacyProduct> ReadOnlyLegacyProducts { get; set; }
+    public DbSet<ReadOnlyLegacyCustomer> ReadOnlyLegacyCustomers { get; set; }
 
     protected override void RegisterModels(ModelBuilder modelBuilder)
     {
-        //do nothing
+        modelBuilder.Entity<LegacyProduct>()
+            .Property(p => p.Id)
+            .ValueGeneratedNever();
+            
+        modelBuilder.Entity<LegacyOrder>()
+            .Property(o => o.Id)
+            .ValueGeneratedNever();
+            
+        modelBuilder.Entity<LegacyCategory>()
+            .Property(c => c.Id)
+            .ValueGeneratedNever();
+            
+        modelBuilder.Entity<ReadOnlyLegacyProduct>()
+            .Property(p => p.Id)
+            .ValueGeneratedNever();
+            
+        modelBuilder.Entity<ReadOnlyLegacyCustomer>()
+            .Property(c => c.Id)
+            .ValueGeneratedNever();
     }
 }

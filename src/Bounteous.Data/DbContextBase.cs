@@ -1,6 +1,7 @@
 using Bounteous.Core.Extensions;
 using Bounteous.Data.Audit;
 using Bounteous.Data.Domain;
+using Bounteous.Data.Exceptions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data;
@@ -70,6 +71,7 @@ public abstract class DbContextBase : DbContext, IDbContext, IDisposable
     
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        ValidateReadOnlyEntities();
         ApplyAuditVisitor();
         var saved = await base.SaveChangesAsync(cancellationToken);
         observer?.OnSaved();
@@ -78,22 +80,46 @@ public abstract class DbContextBase : DbContext, IDbContext, IDisposable
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        ValidateReadOnlyEntities();
         ApplyAuditVisitor();
         var saved = base.SaveChanges(acceptAllChangesOnSuccess);
         observer?.OnSaved();
         return saved;
     }
 
+    private void ValidateReadOnlyEntities()
+    {
+        var readOnlyViolations = ChangeTracker
+            .Entries()
+            .Where(e => e.Entity.GetType().GetInterfaces()
+                .Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IReadOnlyEntity<>)))
+            .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .ToList();
+
+        if (readOnlyViolations.Any())
+        {
+            var violation = readOnlyViolations.First();
+            var operation = violation.State switch
+            {
+                EntityState.Added => "create",
+                EntityState.Modified => "update",
+                EntityState.Deleted => "delete",
+                _ => "modify"
+            };
+            throw new ReadOnlyEntityException(violation.Entity.GetType().Name, operation);
+        }
+    }
+
     private void ApplyAuditVisitor()
     {
         ChangeTracker
             .Entries()
-            .Where(e => e is { Entity: IAuditable, State: EntityState.Added })
+            .Where(e => e is { Entity: IAuditableMarker, State: EntityState.Added })
             .ForEach(x => auditVisitor.AcceptNew(x, TokenUserId));
 
         ChangeTracker
             .Entries()
-            .Where(e => e is { Entity: IAuditable, State: EntityState.Modified })
+            .Where(e => e is { Entity: IAuditableMarker, State: EntityState.Modified })
             .ForEach(x => auditVisitor.AcceptModified(x, TokenUserId));
 
         //deleted entities

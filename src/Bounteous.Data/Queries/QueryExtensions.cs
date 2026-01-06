@@ -17,4 +17,14 @@ public static class QueryExtensions
         return entity ?? throw new NotFoundException<T>(id);
     }
 
+    public static async Task<T> FindById<T, TId>(this DbSet<T> dbSet, TId id, 
+        params Expression<Func<T, object>>[] includes) where T : class, IEntity<TId>
+    {
+        var query = includes.Aggregate<Expression<Func<T, object>>?, IQueryable<T>>(dbSet,
+            (current, include) => current.Include(include!));
+
+        var entity = await query.FirstOrDefaultAsync(e => EF.Property<TId>(e, "Id")!.Equals(id));
+        return entity ?? throw new NotFoundException<T, TId>(id);
+    }
+
 }

@@ -1,11 +1,6 @@
 namespace Bounteous.Data.Domain;
 
-public abstract class AuditImmutableBase : AuditImmutableBase<Guid>
-{
-    public AuditImmutableBase() => Id = Guid.NewGuid();
-}
-
-public abstract class AuditImmutableBase<TId> : IAuditable<TId>, IDeleteable
+public abstract class AuditBase<TId> : IAuditable<TId>, IDeleteable
 {
     public TId Id { get; set; } = default!;
     public Guid? CreatedBy { get; set; }

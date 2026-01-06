@@ -19,7 +19,7 @@ public class TestDbContextFactoryTests : IDisposable
     }
 
     [Fact]
-    public void Create_ShouldReturnTestDbContext()
+    public void CreateShouldReturnTestDbContext()
     {
         // Act
         var context = factory.Create();
@@ -30,7 +30,7 @@ public class TestDbContextFactoryTests : IDisposable
     }
 
     [Fact]
-    public void Create_WithOptionsAndObserver_ShouldReturnTestDbContext()
+    public void CreateWithOptionsAndObserverShouldReturnTestDbContext()
     {
         // Arrange
         var options = new DbContextOptionsBuilder<DbContext>()
@@ -45,6 +45,5 @@ public class TestDbContextFactoryTests : IDisposable
         context.Should().BeOfType<TestDbContext>();
     }
 
-    public void Dispose()
-        => mockRepository.VerifyAll();
+    public void Dispose() => mockRepository.VerifyAll();
 }
