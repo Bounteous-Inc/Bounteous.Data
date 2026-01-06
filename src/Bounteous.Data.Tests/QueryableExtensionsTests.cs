@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Bounteous.Data.Exceptions;
 using Bounteous.Data.Extensions;
 using Bounteous.Data.Tests.Context;
 using Bounteous.Data.Tests.Domain;
@@ -226,6 +227,98 @@ public class QueryableExtensionsTests
             
             // Assert
             results.Count.Should().Be(50);
+        }
+    }
+
+    [Fact]
+    public async Task FindById_Guid_Should_Find_Existing_Customer()
+    {
+        // Arrange
+        var customer = new Customer { Name = "Test Customer" };
+        
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            context.Customers.Add(customer);
+            await context.SaveChangesAsync();
+        }
+
+        // Act
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            var found = await context.Customers.FindById(customer.Id);
+            
+            // Assert
+            found.Should().NotBeNull();
+            found.Id.Should().Be(customer.Id);
+            found.Name.Should().Be("Test Customer");
+        }
+    }
+
+    [Fact]
+    public async Task FindById_Guid_Should_Throw_NotFoundException_When_Not_Found()
+    {
+        // Arrange
+        var nonExistentId = Guid.NewGuid();
+
+        // Act & Assert
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            await Assert.ThrowsAsync<NotFoundException<Customer>>(
+                async () => await context.Customers.FindById(nonExistentId));
+        }
+    }
+
+    [Fact]
+    public async Task FindById_Guid_Should_Work_With_Multiple_Entities()
+    {
+        // Arrange
+        var customer1 = new Customer { Name = "Customer 1" };
+        var customer2 = new Customer { Name = "Customer 2" };
+        var customer3 = new Customer { Name = "Customer 3" };
+        
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            context.Customers.AddRange(customer1, customer2, customer3);
+            await context.SaveChangesAsync();
+        }
+
+        // Act
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            var found = await context.Customers.FindById(customer2.Id);
+            
+            // Assert
+            found.Should().NotBeNull();
+            found.Id.Should().Be(customer2.Id);
+            found.Name.Should().Be("Customer 2");
+        }
+    }
+
+    [Fact]
+    public async Task FindById_Guid_Should_Work_Without_Includes_Parameter()
+    {
+        // Arrange
+        var order = new Order 
+        { 
+            CustomerId = Guid.NewGuid(),
+            Description = "Test Order"
+        };
+        
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            context.Orders.Add(order);
+            await context.SaveChangesAsync();
+        }
+
+        // Act
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            var found = await context.Orders.FindById(order.Id);
+            
+            // Assert
+            found.Should().NotBeNull();
+            found.Id.Should().Be(order.Id);
+            found.Description.Should().Be("Test Order");
         }
     }
 }

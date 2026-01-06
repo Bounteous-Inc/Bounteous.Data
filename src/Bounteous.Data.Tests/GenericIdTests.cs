@@ -1,7 +1,7 @@
 using AwesomeAssertions;
 using Bounteous.Core.Time;
 using Bounteous.Data.Exceptions;
-using Bounteous.Data.Queries;
+using Bounteous.Data.Extensions;
 using Bounteous.Data.Tests.Context;
 using Bounteous.Data.Tests.Domain;
 using Microsoft.EntityFrameworkCore;
