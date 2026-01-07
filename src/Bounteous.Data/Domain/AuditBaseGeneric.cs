@@ -1,8 +1,8 @@
 namespace Bounteous.Data.Domain;
 
-public abstract class AuditImmutableBase : IAuditable, IDeleteable
+public abstract class AuditBase<TId> : IAuditable<TId>, IDeleteable
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public TId Id { get; set; } = default!;
     public Guid? CreatedBy { get; set; }
     public DateTime CreatedOn { get; set; }
     public DateTime SynchronizedOn { get; set; }

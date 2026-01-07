@@ -17,7 +17,7 @@ public class AuditVisitor : IAuditVisitor
 {
     public void AcceptNew(EntityEntry entry, Guid? userId)
     {
-        if (entry.Entity is not IAuditable entityEntry) return;
+        if (entry.Entity is not IAuditableMarker entityEntry) return;
 
         entityEntry.CreatedOn = Clock.Utc.Now;
         entityEntry.ModifiedOn = Clock.Utc.Now;
@@ -32,7 +32,7 @@ public class AuditVisitor : IAuditVisitor
 
     public void AcceptModified(EntityEntry entry, Guid? userId)
     {
-        if (entry.Entity is not IAuditable entityEntry) return;
+        if (entry.Entity is not IAuditableMarker entityEntry) return;
         entityEntry.ModifiedOn = Clock.Utc.Now;
 
         if (!userId.HasValue) return;
@@ -42,7 +42,7 @@ public class AuditVisitor : IAuditVisitor
 
     public void AcceptDeleted(EntityEntry entry, Guid? userId)
     {
-        if(entry.Entity is not IAuditable auditableEntry) return;
+        if(entry.Entity is not IAuditableMarker auditableEntry) return;
         
         ((IDeleteable) entry.Entity).IsDeleted = true;
         entry.State = EntityState.Modified;

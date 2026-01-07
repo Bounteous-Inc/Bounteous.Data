@@ -3,9 +3,12 @@ using Bounteous.Data.Domain;
 
 namespace Bounteous.Data.Tests.Domain;
 
-public class Customer : AuditBase
+public class ReadOnlyLegacyCustomer : ReadOnlyEntityBase<int>
 {
-    
     [MaxLength(100)]
     public string Name { get; set; } = string.Empty;
+    
+    public string Email { get; set; } = string.Empty;
+    
+    public DateTime CreatedDate { get; set; }
 }

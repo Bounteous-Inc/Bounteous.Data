@@ -1,8 +1,7 @@
 namespace Bounteous.Data.Domain;
 
-public interface IAuditable
+public interface IAuditableMarker
 {
-    public Guid Id { get; set; }
     DateTime CreatedOn { get; set; }
     Guid? CreatedBy { get; set; }
     DateTime ModifiedOn { get; set; }
