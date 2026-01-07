@@ -321,4 +321,175 @@ public class QueryableExtensionsTests
             found.Description.Should().Be("Test Order");
         }
     }
+
+    [Fact]
+    public async Task IncludeIf_Should_Include_Navigation_Property_When_Condition_True()
+    {
+        // Arrange
+        var customer = new Customer { Name = "Test Customer" };
+        var order = new Order 
+        { 
+            CustomerId = customer.Id,
+            Description = "Test Order"
+        };
+        
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            context.Customers.Add(customer);
+            context.Orders.Add(order);
+            await context.SaveChangesAsync();
+        }
+
+        // Act
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            var query = context.Orders
+                .AsQueryable()
+                .IncludeIf(true, o => o.Customer);
+            
+            var result = await query.FirstOrDefaultAsync();
+            
+            // Assert
+            result.Should().NotBeNull();
+            result!.Customer.Should().NotBeNull();
+            result.Customer.Name.Should().Be("Test Customer");
+        }
+    }
+
+    [Fact]
+    public async Task IncludeIf_Should_Not_Include_Navigation_Property_When_Condition_False()
+    {
+        // Arrange
+        var customer = new Customer { Name = "Test Customer" };
+        var order = new Order 
+        { 
+            CustomerId = customer.Id,
+            Description = "Test Order"
+        };
+        
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            context.Customers.Add(customer);
+            context.Orders.Add(order);
+            await context.SaveChangesAsync();
+        }
+
+        // Act
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            var query = context.Orders
+                .AsQueryable()
+                .IncludeIf(false, o => o.Customer);
+            
+            var result = await query.FirstOrDefaultAsync();
+            
+            // Assert
+            result.Should().NotBeNull();
+            result!.Customer.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task IncludeIf_Should_Chain_Multiple_Includes()
+    {
+        // Arrange
+        var customer = new Customer { Name = "Test Customer" };
+        var order = new Order 
+        { 
+            CustomerId = customer.Id,
+            Description = "Test Order"
+        };
+        var orderItem = new OrderItem
+        {
+            OrderId = order.Id,
+            ProductName = "Test Product"
+        };
+        
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            context.Customers.Add(customer);
+            context.Orders.Add(order);
+            context.OrderItems.Add(orderItem);
+            await context.SaveChangesAsync();
+        }
+
+        // Act
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            var query = context.Orders
+                .AsQueryable()
+                .IncludeIf(true, o => o.Customer)
+                .IncludeIf(true, o => o.Items);
+            
+            var result = await query.FirstOrDefaultAsync();
+            
+            // Assert
+            result.Should().NotBeNull();
+            result!.Customer.Should().NotBeNull();
+            result.Customer.Name.Should().Be("Test Customer");
+            result.Items.Should().NotBeNull();
+            result.Items.Should().HaveCount(1);
+            result.Items.First().ProductName.Should().Be("Test Product");
+        }
+    }
+
+    [Fact]
+    public async Task IncludeIf_Should_Conditionally_Include_Based_On_Multiple_Flags()
+    {
+        // Arrange
+        var customer = new Customer { Name = "Test Customer" };
+        var order = new Order 
+        { 
+            CustomerId = customer.Id,
+            Description = "Test Order"
+        };
+        var orderItem = new OrderItem
+        {
+            OrderId = order.Id,
+            ProductName = "Test Product"
+        };
+        
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            context.Customers.Add(customer);
+            context.Orders.Add(order);
+            context.OrderItems.Add(orderItem);
+            await context.SaveChangesAsync();
+        }
+
+        // Act - Include customer but not items
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            var query = context.Orders
+                .AsQueryable()
+                .IncludeIf(true, o => o.Customer)
+                .IncludeIf(false, o => o.Items);
+            
+            var result = await query.FirstOrDefaultAsync();
+            
+            // Assert
+            result.Should().NotBeNull();
+            result!.Customer.Should().NotBeNull();
+            result.Customer.Name.Should().Be("Test Customer");
+            result.Items.Should().BeEmpty();
+        }
+    }
+
+    [Fact]
+    public async Task IncludeIf_Should_Work_With_Empty_QuerySet()
+    {
+        // Arrange & Act
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        {
+            var query = context.Orders
+                .AsQueryable()
+                .Where(o => o.Description == "NonExistent")
+                .IncludeIf(true, o => o.Customer);
+            
+            var result = await query.FirstOrDefaultAsync();
+            
+            // Assert
+            result.Should().BeNull();
+        }
+    }
 }

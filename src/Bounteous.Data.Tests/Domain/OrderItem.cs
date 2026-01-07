@@ -9,4 +9,6 @@ public class OrderItem : AuditBase
     
     [MaxLength(100)]
     public string ProductName { get; set; } = string.Empty;
+    
+    public Order? Order { get; set; }
 }

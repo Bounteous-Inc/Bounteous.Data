@@ -1,5 +1,6 @@
 using Bounteous.Core.Extensions;
 using Bounteous.Data.Audit;
+using Bounteous.Data.Converters;
 using Bounteous.Data.Domain;
 using Bounteous.Data.Exceptions;
 using Microsoft.EntityFrameworkCore;

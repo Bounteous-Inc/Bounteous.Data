@@ -9,4 +9,7 @@ public class Order : AuditBase
     
     [MaxLength(100)]
     public string Description { get; set; } = string.Empty;
+    
+    public Customer? Customer { get; set; }
+    public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
 }
