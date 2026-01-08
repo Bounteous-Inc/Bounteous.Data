@@ -921,6 +921,68 @@ public class CustomIdentityProvider : IIdentityProvider<long>
 }
 ```
 
+#### Built-in IdentityProvider Implementation
+
+Bounteous.Data provides a ready-to-use `IdentityProvider<TUserId>` implementation that you can register with the service collection. This is useful for scenarios where you need to manually set the user ID in middleware or other application code:
+
+```csharp
+using Bounteous.Data;
+using Bounteous.Data.Extensions;
+
+// Register the built-in IdentityProvider
+builder.Services.AddIdentityProvider<long>();  // Scoped lifetime
+// OR
+builder.Services.AddSingletonIdentityProvider<long>();  // Singleton lifetime
+
+// Use it in middleware or application code
+public class UserContextMiddleware
+{
+    private readonly RequestDelegate _next;
+
+    public UserContextMiddleware(RequestDelegate next)
+    {
+        _next = next;
+    }
+
+    public async Task InvokeAsync(HttpContext context, IIdentityProvider<long> identityProvider)
+    {
+        // Extract user ID from your authentication mechanism
+        var userIdClaim = context.User?.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim?.Value is string userId && long.TryParse(userId, out var id))
+        {
+            // Set the user ID for this request scope
+            if (identityProvider is IdentityProvider<long> provider)
+            {
+                provider.SetCurrentUserId(id);
+            }
+        }
+
+        await _next(context);
+    }
+}
+
+// Register middleware in Program.cs
+app.UseAuthentication();
+app.UseMiddleware<UserContextMiddleware>();
+app.UseAuthorization();
+```
+
+**Key Methods:**
+- `SetCurrentUserId(TUserId userId)` - Sets the current user ID
+- `GetCurrentUserId()` - Returns the current user ID (or null if not set)
+- `ClearCurrentUserId()` - Clears the current user ID
+
+**When to Use:**
+- ✅ Background jobs or services where you need to set the user ID programmatically
+- ✅ Testing scenarios where you want to control the user context
+- ✅ Middleware-based user context management
+- ✅ Simple applications without complex authentication requirements
+
+**When to Create Custom Implementation:**
+- ❌ ASP.NET Core apps with standard authentication (use `HttpContextAccessor` directly)
+- ❌ When you need complex user resolution logic
+- ❌ When integrating with third-party authentication providers
+
 ### Dependency Injection Setup
 
 #### Step 1: Update Your DbContext

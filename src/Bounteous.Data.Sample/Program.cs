@@ -30,9 +30,13 @@ try
     var userId = Guid.NewGuid();
     Log.Information("\n[SETUP] Test User ID: {UserId}", userId);
     
-    // Set the user ID in the IIdentityProvider for automatic resolution
-    SampleIdentityProvider.SetCurrentUserId(userId);
-    Log.Information("[SETUP] ✓ User ID set in IIdentityProvider for automatic auditing");
+    // Set the user ID in the built-in IdentityProvider for automatic resolution
+    var identityProvider = serviceProvider.GetRequiredService<IIdentityProvider<Guid>>();
+    if (identityProvider is IdentityProvider<Guid> provider)
+    {
+        provider.SetCurrentUserId(userId);
+        Log.Information("[SETUP] ✓ User ID set in built-in IdentityProvider for automatic auditing");
+    }
 
     var customerService = serviceProvider.GetRequiredService<ICustomerService>();
     var productService = serviceProvider.GetRequiredService<IProductService>();

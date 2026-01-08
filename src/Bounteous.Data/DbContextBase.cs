@@ -20,21 +20,20 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
     private readonly IIdentityProvider<TUserId>? identityProvider;
     private TUserId TokenUserId { get; set; }
 
-    protected DbContextBase(DbContextOptions options, IDbContextObserver? observer)
+    protected DbContextBase(
+        DbContextOptions options, 
+        IDbContextObserver? observer, 
+        IIdentityProvider<TUserId>? identityProvider = null)
         : base(options)
     {
         auditVisitor = new AuditVisitor<TUserId>();
         this.observer = observer;
+        this.identityProvider = identityProvider;
+        
         if (this.observer == null) return;
 
         base.ChangeTracker.Tracked += this.observer.OnEntityTracked!;
         base.ChangeTracker.StateChanged += this.observer.OnStateChanged;
-    }
-
-    protected DbContextBase(DbContextOptions options, IDbContextObserver? observer, IIdentityProvider<TUserId>? identityProvider)
-        : this(options, observer)
-    {
-        this.identityProvider = identityProvider;
     }
 
     IDbContext<TUserId> IDbContext<TUserId>.WithUserId(TUserId userId)

@@ -17,9 +17,11 @@ public static class AppStartup
         services.AddSingleton<IConnectionStringProvider, SampleConnectionStringProvider>();
         services.AddSingleton<IConnectionBuilder, ConnectionBuilder>();
         
-        // Register IIdentityProvider for automatic user ID resolution
-        services.AddScoped<IIdentityProvider<Guid>, SampleIdentityProvider>();
+        // Register ModuleStartup first to get default registrations (including IdentityProvider)
+        new ModuleStartup().RegisterServices(services);
         
+        // The built-in IdentityProvider<Guid> is now registered by ModuleStartup
+        // We can resolve it and use it in the factory
         services.AddScoped<IDbContextFactory<SampleDbContext, Guid>>(sp =>
         {
             var connectionBuilder = sp.GetRequiredService<IConnectionBuilder>();
@@ -28,8 +30,6 @@ public static class AppStartup
             
             return new SampleDbContextFactory(connectionBuilder, observer, identityProvider);
         });
-
-        new ModuleStartup().RegisterServices(services);
 
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IProductService, ProductService>();

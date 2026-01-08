@@ -15,16 +15,13 @@ public abstract class DbContextFactory<T, TUserId> : IDbContextFactory<T, TUserI
     protected readonly IDbContextObserver Observer;
     protected readonly IIdentityProvider<TUserId>? IdentityProvider;
 
-    // ReSharper disable once ConvertToPrimaryConstructor
-    protected DbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer)
+    protected DbContextFactory(
+        IConnectionBuilder connectionBuilder, 
+        IDbContextObserver observer, 
+        IIdentityProvider<TUserId>? identityProvider = null)
     {
         ConnectionBuilder = connectionBuilder;
         Observer = observer;
-    }
-
-    protected DbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer, IIdentityProvider<TUserId>? identityProvider)
-        : this(connectionBuilder, observer)
-    {
         IdentityProvider = identityProvider;
     }
     

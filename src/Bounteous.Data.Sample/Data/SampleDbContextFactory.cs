@@ -4,12 +4,10 @@ namespace Bounteous.Data.Sample.Data;
 
 public class SampleDbContextFactory : DbContextFactory<SampleDbContext, Guid>
 {
-    public SampleDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer)
-        : base(connectionBuilder, observer)
-    {
-    }
-
-    public SampleDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+    public SampleDbContextFactory(
+        IConnectionBuilder connectionBuilder, 
+        IDbContextObserver observer, 
+        IIdentityProvider<Guid>? identityProvider = null)
         : base(connectionBuilder, observer, identityProvider)
     {
     }

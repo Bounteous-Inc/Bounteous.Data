@@ -7,7 +7,10 @@ namespace Bounteous.Data;
 public class ModuleStartup : IModule
 {
     public void RegisterServices(IServiceCollection services)
-        => services.TryAddSingleton<IDbContextObserver, DefaultDbContextObserver>();
+    {
+        services.TryAddSingleton<IDbContextObserver, DefaultDbContextObserver>();
+        services.TryAddScoped(typeof(IIdentityProvider<>), typeof(IdentityProvider<>));
+    }
 
     public int Priority => 1;
 }
