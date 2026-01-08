@@ -8,7 +8,7 @@ set -e  # Exit on error
 echo "========================================="
 echo "Building Bounteous.Data Solution"
 echo "========================================="
-dotnet build --configuration Release --output ./temp-build
+dotnet build --configuration Release
 
 echo ""
 echo "========================================="
@@ -26,6 +26,3 @@ echo ""
 echo "========================================="
 echo "All validations completed successfully!"
 echo "========================================="
-
-# Clean up temporary build output
-rm -rf ./temp-build
