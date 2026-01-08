@@ -17,7 +17,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
 {
     private readonly AuditVisitor<TUserId> auditVisitor;
     private readonly IDbContextObserver? observer;
-    private TUserId? TokenUserId { get; set; }
+    private TUserId TokenUserId { get; set; }
 
     protected DbContextBase(DbContextOptions options, IDbContextObserver observer)
         : base(options)
@@ -114,19 +114,21 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
 
     private void ApplyAuditVisitor()
     {
+        var userId = EqualityComparer<TUserId>.Default.Equals(TokenUserId, default) ? null : (TUserId?)TokenUserId;
+        
         ChangeTracker
             .Entries()
             .Where(e => e is { Entity: IAuditableMarker<TUserId>, State: EntityState.Added })
-            .ForEach(x => auditVisitor.AcceptNew(x, TokenUserId));
+            .ForEach(x => auditVisitor.AcceptNew(x, userId));
 
         ChangeTracker
             .Entries()
             .Where(e => e is { Entity: IAuditableMarker<TUserId>, State: EntityState.Modified })
-            .ForEach(x => auditVisitor.AcceptModified(x, TokenUserId));
+            .ForEach(x => auditVisitor.AcceptModified(x, userId));
 
         ChangeTracker
             .Entries()
             .Where(e => e is { Entity: IDeleteable, State: EntityState.Deleted })
-            .ForEach(x => auditVisitor.AcceptDeleted(x, TokenUserId));
+            .ForEach(x => auditVisitor.AcceptDeleted(x, userId));
     }
 }

@@ -7,9 +7,9 @@ namespace Bounteous.Data.Sample.Services;
 
 public class OrderService : IOrderService
 {
-    private readonly IDbContextFactory<SampleDbContext> _contextFactory;
+    private readonly IDbContextFactory<SampleDbContext, Guid> _contextFactory;
 
-    public OrderService(IDbContextFactory<SampleDbContext> contextFactory)
+    public OrderService(IDbContextFactory<SampleDbContext, Guid> contextFactory)
     {
         _contextFactory = contextFactory;
     }

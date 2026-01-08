@@ -33,7 +33,7 @@ try
     var customerService = serviceProvider.GetRequiredService<ICustomerService>();
     var productService = serviceProvider.GetRequiredService<IProductService>();
     var orderService = serviceProvider.GetRequiredService<IOrderService>();
-    var contextFactory = serviceProvider.GetRequiredService<Bounteous.Data.IDbContextFactory<SampleDbContext>>();
+    var contextFactory = serviceProvider.GetRequiredService<Bounteous.Data.IDbContextFactory<SampleDbContext, Guid>>();
 
     // ═══════════════════════════════════════════════════════════════
     // FEATURE 1: Automatic Auditing with AuditVisitor.AcceptNew
