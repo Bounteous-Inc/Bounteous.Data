@@ -1,22 +1,28 @@
 #!/bin/bash
 
 # Bounteous.Data Sample Application Runner
-# This script builds the solution and runs the sample application
+# This script builds the solution, runs tests, and runs the sample application
 
 set -e  # Exit on error
 
 echo "========================================="
 echo "Building Bounteous.Data Solution"
 echo "========================================="
-dotnet build
+dotnet build --configuration Release
+
+echo ""
+echo "========================================="
+echo "Running Automated Tests"
+echo "========================================="
+dotnet test --no-build --configuration Release --verbosity normal
 
 echo ""
 echo "========================================="
 echo "Running Bounteous.Data.Sample Application"
 echo "========================================="
-dotnet run --project src/Bounteous.Data.Sample/Bounteous.Data.Sample.csproj
+dotnet run --project src/Bounteous.Data.Sample/Bounteous.Data.Sample.csproj --no-build --configuration Release
 
 echo ""
 echo "========================================="
-echo "Sample application completed successfully!"
+echo "All validations completed successfully!"
 echo "========================================="
