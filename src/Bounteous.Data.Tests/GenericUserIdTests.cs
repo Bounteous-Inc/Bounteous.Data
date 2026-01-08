@@ -134,8 +134,8 @@ public class GenericUserIdTests : IDisposable
         await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
         {
             var savedProduct = await context.Products.FirstAsync(p => p.Id == product.Id);
-            savedProduct.CreatedBy.Should().BeNull();
-            savedProduct.ModifiedBy.Should().BeNull();
+            savedProduct.CreatedBy.Should().Be(0L); // Default value when no user ID is set
+            savedProduct.ModifiedBy.Should().Be(0L); // Default value when no user ID is set
             savedProduct.CreatedOn.Should().BeCloseTo(Clock.Utc.Now, TimeSpan.FromSeconds(5));
             savedProduct.ModifiedOn.Should().BeCloseTo(Clock.Utc.Now, TimeSpan.FromSeconds(5));
             savedProduct.Version.Should().Be(0);

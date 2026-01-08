@@ -16,7 +16,18 @@ public static class AppStartup
         services.AddSingleton(configuration);
         services.AddSingleton<IConnectionStringProvider, SampleConnectionStringProvider>();
         services.AddSingleton<IConnectionBuilder, ConnectionBuilder>();
-        services.AddScoped<IDbContextFactory<SampleDbContext, Guid>, SampleDbContextFactory>();
+        
+        // Register IIdentityProvider for automatic user ID resolution
+        services.AddScoped<IIdentityProvider<Guid>, SampleIdentityProvider>();
+        
+        services.AddScoped<IDbContextFactory<SampleDbContext, Guid>>(sp =>
+        {
+            var connectionBuilder = sp.GetRequiredService<IConnectionBuilder>();
+            var observer = sp.GetRequiredService<IDbContextObserver>();
+            var identityProvider = sp.GetRequiredService<IIdentityProvider<Guid>>();
+            
+            return new SampleDbContextFactory(connectionBuilder, observer, identityProvider);
+        });
 
         new ModuleStartup().RegisterServices(services);
 

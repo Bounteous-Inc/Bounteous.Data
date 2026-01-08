@@ -10,9 +10,9 @@ public class TestDbContextFactory : DbContextFactory<TestDbContext, Guid>
     }
 
     protected override TestDbContext Create(DbContextOptions applyOptions,
-        IDbContextObserver dbContextObserver)
+        IDbContextObserver dbContextObserver, IIdentityProvider<Guid>? identityProvider)
     {
-        return new TestDbContext(applyOptions, dbContextObserver);
+        return new TestDbContext(applyOptions, dbContextObserver, identityProvider);
     }
 
     protected override DbContextOptions ApplyOptions(bool sensitiveDataLoggingEnabled = false)

@@ -27,7 +27,7 @@ public class AuditVisitor<TUserId> : IAuditVisitor<TUserId>
         if (!userId.HasValue) return;
         
         entityEntry.ModifiedBy = userId.Value;
-        if (!entityEntry.CreatedBy.HasValue)
+        if (EqualityComparer<TUserId>.Default.Equals(entityEntry.CreatedBy, default))
             entityEntry.CreatedBy = userId.Value;
         entityEntry.Version += 1;
     }
@@ -38,7 +38,7 @@ public class AuditVisitor<TUserId> : IAuditVisitor<TUserId>
         entityEntry.ModifiedOn = Clock.Utc.Now;
 
         if (!userId.HasValue) return;
-        entityEntry.ModifiedBy = userId;
+        entityEntry.ModifiedBy = userId.Value;
         entityEntry.Version += 1;
     }
 

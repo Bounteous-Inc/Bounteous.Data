@@ -10,6 +10,11 @@ public class TestDbContext : DbContextBase<Guid>, IDbContext<Guid>
     {
     }
 
+    public TestDbContext(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+        : base(options, observer, identityProvider)
+    {
+    }
+
     public DbSet<Customer> Customers { get; set; }
     public DbSet<Order> Orders { get; set; }
     public DbSet<OrderItem> OrderItems { get; set; }

@@ -12,6 +12,11 @@ public class SampleDbContext : DbContextBase<Guid>
     {
     }
 
+    public SampleDbContext(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+        : base(options, observer, identityProvider)
+    {
+    }
+
     public DbSet<Customer> Customers { get; set; } = null!;
     public DbSet<Product> Products { get; set; } = null!;
     public DbSet<Order> Orders { get; set; } = null!;

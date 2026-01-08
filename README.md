@@ -87,6 +87,11 @@ This combination allows developers to focus on business logic while ensuring dat
   - [Type Safety and Constraints](#type-safety-and-constraints)
   - [Backward Compatibility](#backward-compatibility)
   - [Migration Guide](#migration-guide)
+- [Automatic User ID with IIdentityProvider](#automatic-user-id-with-iidentityprovider)
+  - [Quick Start with IIdentityProvider](#quick-start-with-iidentityprovider)
+  - [Implementation Examples](#implementation-examples)
+  - [Dependency Injection Setup](#dependency-injection-setup)
+  - [Fallback Behavior](#fallback-behavior)
 - [Core Components](#core-components)
 - [Usage Examples](#usage-examples)
 - [Advanced Features](#advanced-features)
@@ -96,12 +101,13 @@ This combination allows developers to focus on business logic while ensuring dat
 ## Features
 
 - **Automatic Auditing**: Built-in audit trail support with `IAuditable<TId, TUserId>` interface and convenience wrappers
+- **Automatic User ID Resolution**: `IIdentityProvider<TUserId>` interface for automatic user ID retrieval from authentication context
 - **Generic User ID Support**: Flexible user identification with support for `Guid`, `long`, `int`, or any struct type for audit tracking
 - **Flexible ID Strategies**: Support for Guid, int, and long primary keys with generic `IEntity<TId>`
 - **Clean Generic Architecture**: Single generic implementations with type-safe convenience wrappers for Guid-based systems
 - **Read-Only Entities**: Automatic protection against Create, Update, and Delete operations for legacy tables
 - **Soft Delete**: Support for soft delete operations with `IDeleteable` interface
-- **DbContext Factory Pattern**: Simplified context creation and management
+- **DbContext Factory Pattern**: Simplified context creation and management with identity provider support
 - **Connection Management**: Abstracted connection string and database connection handling
 - **Extension Methods**: Rich set of LINQ and DbContext extensions
 - **Value Converters**: Built-in converters for DateTime and Enum handling
@@ -194,8 +200,15 @@ using Microsoft.EntityFrameworkCore;
 
 public class MyDbContext : DbContextBase<Guid>
 {
+    // Constructor without IIdentityProvider (for migrations)
     public MyDbContext(DbContextOptions options, IDbContextObserver observer)
         : base(options, observer)
+    {
+    }
+
+    // Constructor with IIdentityProvider (for runtime automatic user ID)
+    public MyDbContext(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+        : base(options, observer, identityProvider)
     {
     }
 
@@ -230,16 +243,23 @@ public class MyDbContext : DbContextBase<Guid>
 using Bounteous.Data;
 using Microsoft.EntityFrameworkCore;
 
-public class MyDbContextFactory : DbContextFactory<MyDbContext>
+public class MyDbContextFactory : DbContextFactory<MyDbContext, Guid>
 {
+    // Constructor without IIdentityProvider (backward compatible)
     public MyDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer)
         : base(connectionBuilder, observer)
     {
     }
 
-    protected override MyDbContext Create(DbContextOptions options, IDbContextObserver observer)
+    // Constructor with IIdentityProvider (for automatic user ID)
+    public MyDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+        : base(connectionBuilder, observer, identityProvider)
     {
-        return new MyDbContext(options, observer);
+    }
+
+    protected override MyDbContext Create(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+    {
+        return new MyDbContext(options, observer, identityProvider);
     }
 
     protected override DbContextOptions ApplyOptions(bool sensitiveDataLoggingEnabled = false)
@@ -801,6 +821,397 @@ context.WithUserId(Guid.NewGuid());
 
 // After
 context.WithUserId(12345L);
+```
+
+## Automatic User ID with IIdentityProvider
+
+Starting with version 0.0.1, Bounteous.Data supports **automatic user ID resolution** through the `IIdentityProvider<TUserId>` interface. This eliminates the need to manually call `WithUserId()` before every `SaveChanges()` operation by automatically retrieving the current user ID from your authentication context.
+
+### Quick Start with IIdentityProvider
+
+The `IIdentityProvider<TUserId>` interface allows your `DbContext` to automatically retrieve the current user's ID when saving changes:
+
+```csharp
+public interface IIdentityProvider<TUserId> where TUserId : struct
+{
+    TUserId? GetCurrentUserId();
+}
+```
+
+**Key Benefits:**
+- ✅ **Automatic user tracking** - No need to remember to call `WithUserId()`
+- ✅ **Centralized auth logic** - User ID retrieval in one place
+- ✅ **Cleaner service code** - Less boilerplate in repositories/services
+- ✅ **Flexible** - Can still override with `WithUserId()` when needed
+- ✅ **Type-safe** - Works with `long`, `Guid`, `int`, or any struct type
+
+### Implementation Examples
+
+#### ASP.NET Core with Long User IDs
+
+```csharp
+using Bounteous.Data;
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+
+public class HttpContextIdentityProvider : IIdentityProvider<long>
+{
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public HttpContextIdentityProvider(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    public long? GetCurrentUserId()
+    {
+        // Get user ID from claims (adjust claim type based on your auth setup)
+        var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")
+            ?? _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        
+        if (userIdClaim?.Value is string userId && long.TryParse(userId, out var id))
+            return id;
+        
+        return null; // No authenticated user
+    }
+}
+```
+
+#### ASP.NET Core with Guid User IDs
+
+```csharp
+public class HttpContextIdentityProvider : IIdentityProvider<Guid>
+{
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public HttpContextIdentityProvider(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    public Guid? GetCurrentUserId()
+    {
+        var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")
+            ?? _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        
+        if (userIdClaim?.Value is string userId && Guid.TryParse(userId, out var id))
+            return id;
+        
+        return null;
+    }
+}
+```
+
+#### Custom Authentication Service
+
+```csharp
+public class CustomIdentityProvider : IIdentityProvider<long>
+{
+    private readonly ICurrentUserService _currentUserService;
+
+    public CustomIdentityProvider(ICurrentUserService currentUserService)
+    {
+        _currentUserService = currentUserService;
+    }
+
+    public long? GetCurrentUserId()
+    {
+        return _currentUserService.GetUserId();
+    }
+}
+```
+
+### Dependency Injection Setup
+
+#### Step 1: Update Your DbContext
+
+Add a constructor overload that accepts `IIdentityProvider`:
+
+```csharp
+public class MyDbContext : DbContextBase<long>
+{
+    // Existing constructor for migrations (no identity provider)
+    public MyDbContext(DbContextOptions options, IDbContextObserver? observer)
+        : base(options, observer)
+    {
+    }
+
+    // New constructor with identity provider for runtime
+    public MyDbContext(DbContextOptions options, IDbContextObserver? observer, IIdentityProvider<long>? identityProvider)
+        : base(options, observer, identityProvider)
+    {
+    }
+
+    // ... DbSets and configuration
+}
+```
+
+#### Step 2: Update Your DbContextFactory
+
+```csharp
+public class MyDbContextFactory : DbContextFactory<MyDbContext, long>
+{
+    // Existing constructor (backward compatible)
+    public MyDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer)
+        : base(connectionBuilder, observer)
+    {
+    }
+
+    // New constructor with identity provider
+    public MyDbContextFactory(
+        IConnectionBuilder connectionBuilder, 
+        IDbContextObserver observer, 
+        IIdentityProvider<long>? identityProvider)
+        : base(connectionBuilder, observer, identityProvider)
+    {
+    }
+
+    protected override MyDbContext Create(
+        DbContextOptions options, 
+        IDbContextObserver observer, 
+        IIdentityProvider<long>? identityProvider)
+    {
+        return new MyDbContext(options, observer, identityProvider);
+    }
+
+    protected override DbContextOptions ApplyOptions(bool sensitiveDataLoggingEnabled = false)
+    {
+        var optionsBuilder = new DbContextOptionsBuilder<MyDbContext>();
+        optionsBuilder.UseSqlServer(ConnectionBuilder.GetConnectionString());
+        
+        if (sensitiveDataLoggingEnabled)
+            optionsBuilder.EnableSensitiveDataLogging();
+            
+        return optionsBuilder.Options;
+    }
+}
+```
+
+#### Step 3: Register Services in Program.cs
+
+```csharp
+// ASP.NET Core setup
+var builder = WebApplication.CreateBuilder(args);
+
+// Required for HttpContextAccessor
+builder.Services.AddHttpContextAccessor();
+
+// Register your IIdentityProvider implementation
+builder.Services.AddScoped<IIdentityProvider<long>, HttpContextIdentityProvider>();
+
+// Register connection and observer services
+builder.Services.AddScoped<IConnectionBuilder, ConnectionBuilder>();
+builder.Services.AddScoped<IDbContextObserver, DbContextObserver>();
+
+// Register your DbContext factory with IIdentityProvider
+builder.Services.AddScoped<IDbContextFactory<MyDbContext, long>>(sp =>
+{
+    var connectionBuilder = sp.GetRequiredService<IConnectionBuilder>();
+    var observer = sp.GetRequiredService<IDbContextObserver>();
+    var identityProvider = sp.GetRequiredService<IIdentityProvider<long>>();
+    
+    return new MyDbContextFactory(connectionBuilder, observer, identityProvider);
+});
+
+var app = builder.Build();
+
+// Configure middleware
+app.UseAuthentication();
+app.UseAuthorization();
+app.MapControllers();
+app.Run();
+```
+
+#### Step 4: Use Your DbContext (No Manual UserId Required!)
+
+```csharp
+public class CustomerService
+{
+    private readonly IDbContextFactory<MyDbContext, long> _contextFactory;
+
+    public CustomerService(IDbContextFactory<MyDbContext, long> contextFactory)
+    {
+        _contextFactory = contextFactory;
+    }
+
+    public async Task<Customer> CreateCustomerAsync(string name, string email)
+    {
+        using var context = _contextFactory.Create();
+        
+        // No need to call WithUserId() - it's automatic!
+        var customer = new Customer { Name = name, Email = email };
+        context.Customers.Add(customer);
+        await context.SaveChangesAsync();
+        
+        // CreatedBy and ModifiedBy are automatically set from IIdentityProvider
+        return customer;
+    }
+
+    public async Task UpdateCustomerAsync(Guid customerId, string newEmail)
+    {
+        using var context = _contextFactory.Create();
+        
+        var customer = await context.Customers.FindById(customerId);
+        customer.Email = newEmail;
+        
+        // No WithUserId() needed - ModifiedBy automatically set!
+        await context.SaveChangesAsync();
+    }
+}
+```
+
+### Fallback Behavior
+
+The `DbContext` uses this priority order for determining the user ID:
+
+1. **Manual override** - If you call `WithUserId()`, that takes precedence
+2. **IIdentityProvider** - If configured, calls `GetCurrentUserId()`
+3. **Default** - If neither is available, audit fields get default values (`0L` for long, `Guid.Empty` for Guid)
+
+#### Manual Override Example
+
+You can still override the `IIdentityProvider` for specific operations:
+
+```csharp
+public async Task CreateCustomerAsSystemAsync(string name, string email)
+{
+    using var context = _contextFactory.Create();
+    
+    // Override the IIdentityProvider for this specific operation
+    var systemUserId = 1L; // System user ID
+    context.WithUserId(systemUserId);
+    
+    var customer = new Customer { Name = name, Email = email };
+    context.Customers.Add(customer);
+    
+    await context.SaveChangesAsync(); // Uses systemUserId instead of IIdentityProvider
+}
+```
+
+### Design-Time vs Runtime
+
+For **EF Core migrations**, keep your `IDesignTimeDbContextFactory` simple (no `IIdentityProvider`):
+
+```csharp
+public class MyDbContextFactory : IDesignTimeDbContextFactory<MyDbContext>
+{
+    public MyDbContext CreateDbContext(string[] args)
+    {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
+
+        var connectionString = configuration.GetConnectionString("DbConnection");
+        var optionsBuilder = new DbContextOptionsBuilder<MyDbContext>();
+        optionsBuilder.UseSqlServer(connectionString);
+
+        // Pass null for observer and identityProvider - not needed for migrations
+        return new MyDbContext(optionsBuilder.Options, null, null);
+    }
+}
+```
+
+This keeps migrations working while your runtime factory uses `IIdentityProvider`.
+
+### Complete ASP.NET Core Example
+
+Here's a complete example showing all the pieces together:
+
+```csharp
+// 1. IIdentityProvider Implementation
+public class HttpContextIdentityProvider : IIdentityProvider<long>
+{
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public HttpContextIdentityProvider(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    public long? GetCurrentUserId()
+    {
+        var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        return userIdClaim?.Value is string userId && long.TryParse(userId, out var id) ? id : null;
+    }
+}
+
+// 2. Entity Definition
+public class Customer : AuditBase<Guid, long>
+{
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+}
+
+// 3. DbContext
+public class MyDbContext : DbContextBase<long>
+{
+    public MyDbContext(DbContextOptions options, IDbContextObserver? observer, IIdentityProvider<long>? identityProvider)
+        : base(options, observer, identityProvider)
+    {
+    }
+
+    public DbSet<Customer> Customers { get; set; }
+    
+    protected override void RegisterModels(ModelBuilder modelBuilder)
+    {
+        // Configure entities
+    }
+}
+
+// 4. DbContext Factory
+public class MyDbContextFactory : DbContextFactory<MyDbContext, long>
+{
+    public MyDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer, IIdentityProvider<long>? identityProvider)
+        : base(connectionBuilder, observer, identityProvider)
+    {
+    }
+
+    protected override MyDbContext Create(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<long>? identityProvider)
+    {
+        return new MyDbContext(options, observer, identityProvider);
+    }
+
+    protected override DbContextOptions ApplyOptions(bool sensitiveDataLoggingEnabled = false)
+    {
+        var optionsBuilder = new DbContextOptionsBuilder<MyDbContext>();
+        optionsBuilder.UseSqlServer(ConnectionBuilder.GetConnectionString());
+        return optionsBuilder.Options;
+    }
+}
+
+// 5. Service Registration (Program.cs)
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IIdentityProvider<long>, HttpContextIdentityProvider>();
+builder.Services.AddScoped<IConnectionBuilder, ConnectionBuilder>();
+builder.Services.AddScoped<IDbContextObserver, DbContextObserver>();
+builder.Services.AddScoped<IDbContextFactory<MyDbContext, long>, MyDbContextFactory>();
+
+// 6. Usage in Service
+public class CustomerService
+{
+    private readonly IDbContextFactory<MyDbContext, long> _contextFactory;
+
+    public CustomerService(IDbContextFactory<MyDbContext, long> contextFactory)
+    {
+        _contextFactory = contextFactory;
+    }
+
+    public async Task<Customer> CreateCustomerAsync(string name, string email)
+    {
+        using var context = _contextFactory.Create();
+        
+        // User ID automatically retrieved from HttpContext!
+        var customer = new Customer { Name = name, Email = email };
+        context.Customers.Add(customer);
+        await context.SaveChangesAsync();
+        
+        return customer;
+    }
+}
+```
+
+Now all database operations automatically track which user made the changes!
 
 ## Core Components
 
@@ -1234,10 +1645,11 @@ public async Task<PagedResult<Customer>> GetCustomersPagedAsync(int page = 1, in
 
 #### Context Interfaces
 - **`IDbContext<TUserId>`**: Generic interface extending DbContext with user context support
+- **`IIdentityProvider<TUserId>`**: Interface for automatic user ID resolution from authentication context
 - **`IDbContextObserver`**: Entity tracking and state change notifications
 - **`IConnectionBuilder`**: Database connection management
 - **`IConnectionStringProvider`**: Connection string abstraction
-- **`IDbContextFactory<TContext>`**: Factory pattern for creating DbContext instances (where TContext : IDbContext<Guid>)
+- **`IDbContextFactory<TContext, TUserId>`**: Factory pattern for creating DbContext instances with identity provider support
 
 ### Base Classes
 

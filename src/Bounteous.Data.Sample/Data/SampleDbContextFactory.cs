@@ -9,9 +9,14 @@ public class SampleDbContextFactory : DbContextFactory<SampleDbContext, Guid>
     {
     }
 
-    protected override SampleDbContext Create(DbContextOptions options, IDbContextObserver observer)
+    public SampleDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+        : base(connectionBuilder, observer, identityProvider)
     {
-        return new SampleDbContext(options, observer);
+    }
+
+    protected override SampleDbContext Create(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+    {
+        return new SampleDbContext(options, observer, identityProvider);
     }
 
     protected override DbContextOptions ApplyOptions(bool sensitiveDataLoggingEnabled = false)
