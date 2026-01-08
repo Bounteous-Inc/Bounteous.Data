@@ -8,7 +8,7 @@ set -e  # Exit on error
 echo "========================================="
 echo "Building Bounteous.Data Solution"
 echo "========================================="
-dotnet build
+dotnet build --configuration Release --output ./temp-build
 
 echo ""
 echo "========================================="
