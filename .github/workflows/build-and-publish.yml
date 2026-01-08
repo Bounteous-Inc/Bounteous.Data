@@ -6,7 +6,26 @@ on:
     branches: [ main ]
 
 jobs:
+  run-sample:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      
+      - name: Make script executable
+        run: chmod +x run-sample.sh
+      
+      - name: Run sample application
+        run: ./run-sample.sh
+  
   publish:
+    needs: run-sample
     if: github.event.pull_request.merged == true
     uses: Bounteous-Inc/bounteous-dotnet-common-workflows/.github/workflows/build-and-publish-to-nuget.yml@main
     with:

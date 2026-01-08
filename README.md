@@ -80,6 +80,13 @@ This combination allows developers to focus on business logic while ensuring dat
   - [Auditable Entities with Custom ID Types](#auditable-entities-with-custom-id-types)
   - [Read-Only Entities](#read-only-entities)
   - [Non-Auditable Entities](#non-auditable-entities)
+- [Generic User ID Support](#generic-user-id-support)
+  - [Identity Strategies](#identity-strategies)
+  - [AuditVisitor Configuration](#auditvisitor-configuration)
+  - [Mixed Entity and User ID Strategies](#mixed-entity-and-user-id-strategies)
+  - [Type Safety and Constraints](#type-safety-and-constraints)
+  - [Backward Compatibility](#backward-compatibility)
+  - [Migration Guide](#migration-guide)
 - [Core Components](#core-components)
 - [Usage Examples](#usage-examples)
 - [Advanced Features](#advanced-features)
@@ -88,8 +95,10 @@ This combination allows developers to focus on business logic while ensuring dat
 
 ## Features
 
-- **Automatic Auditing**: Built-in audit trail support with `IAuditable` and `IAuditable<TId>` interfaces
+- **Automatic Auditing**: Built-in audit trail support with `IAuditable<TId, TUserId>` interface and convenience wrappers
+- **Generic User ID Support**: Flexible user identification with support for `Guid`, `long`, `int`, or any struct type for audit tracking
 - **Flexible ID Strategies**: Support for Guid, int, and long primary keys with generic `IEntity<TId>`
+- **Clean Generic Architecture**: Single generic implementations with type-safe convenience wrappers for Guid-based systems
 - **Read-Only Entities**: Automatic protection against Create, Update, and Delete operations for legacy tables
 - **Soft Delete**: Support for soft delete operations with `IDeleteable` interface
 - **DbContext Factory Pattern**: Simplified context creation and management
@@ -183,9 +192,9 @@ public class LegacyCustomer : ReadOnlyEntityBase<int>
 using Bounteous.Data;
 using Microsoft.EntityFrameworkCore;
 
-public class MyDbContext : DbContextBase
+public class MyDbContext : DbContextBase<Guid>
 {
-    public MyDbContext(DbContextOptions<DbContextBase> options, IDbContextObserver observer)
+    public MyDbContext(DbContextOptions options, IDbContextObserver observer)
         : base(options, observer)
     {
     }
@@ -228,14 +237,14 @@ public class MyDbContextFactory : DbContextFactory<MyDbContext>
     {
     }
 
-    protected override MyDbContext Create(DbContextOptions<DbContextBase> options, IDbContextObserver observer)
+    protected override MyDbContext Create(DbContextOptions options, IDbContextObserver observer)
     {
         return new MyDbContext(options, observer);
     }
 
-    protected override DbContextOptions<DbContextBase> ApplyOptions(bool sensitiveDataLoggingEnabled = false)
+    protected override DbContextOptions ApplyOptions(bool sensitiveDataLoggingEnabled = false)
     {
-        var optionsBuilder = new DbContextOptionsBuilder<DbContextBase>();
+        var optionsBuilder = new DbContextOptionsBuilder<MyDbContext>();
         
         if (sensitiveDataLoggingEnabled)
             optionsBuilder.EnableSensitiveDataLogging();
@@ -298,18 +307,18 @@ public class Customer : AuditBase
 
 ### Auditable Entities with Custom ID Types
 
-Use `AuditBase<TId>` for legacy entities or when you need int/long primary keys:
+Use `AuditBase<TId, TUserId>` for legacy entities or when you need int/long primary keys:
 
 ```csharp
-// Legacy entity with long ID
-public class LegacyProduct : AuditBase<long>
+// Legacy entity with long ID and Guid user IDs
+public class LegacyProduct : AuditBase<long, Guid>
 {
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
 }
 
-// Legacy entity with int ID
-public class LegacyOrder : AuditBase<int>
+// Legacy entity with int ID and Guid user IDs
+public class LegacyOrder : AuditBase<int, Guid>
 {
     public string OrderNumber { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
@@ -399,40 +408,437 @@ public class LegacyCategory : IEntity<long>
 - Entities that don't require audit trails
 - High-performance scenarios where audit overhead isn't needed
 
+## Generic User ID Support
+
+Starting with version 0.0.1, Bounteous.Data supports **generic user ID types** for audit tracking. You can now use `Guid`, `long`, `int`, or any other struct type for the `CreatedBy` and `ModifiedBy` audit fields, allowing seamless integration with various authentication systems and legacy databases.
+
+### Identity Strategies
+
+The library supports three primary identity strategies for user tracking:
+
+#### 1. Guid-Based User IDs (Default)
+
+The traditional approach using Guid for user identification:
+
+```csharp
+// Entity with Guid user IDs (default behavior)
+public class Customer : AuditBase
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+// Or explicitly with generic syntax
+public class Customer : AuditBase<Guid, Guid>
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+// DbContext uses Guid for user IDs by default
+public class MyDbContext : DbContextBase<Guid>
+{
+    public MyDbContext(DbContextOptions options, IDbContextObserver observer)
+        : base(options, observer)
+    {
+    }
+    
+    public DbSet<Customer> Customers { get; set; }
+    
+    protected override void RegisterModels(ModelBuilder modelBuilder)
+    {
+        // Configure entities
+    }
+}
+
+// Usage
+using var context = _contextFactory.Create().WithUserId(Guid.NewGuid());
+var customer = new Customer { Name = "John Doe" };
+context.Customers.Add(customer);
+await context.SaveChangesAsync();
+
+// Audit fields populated:
+// - customer.CreatedBy = Guid (the user ID you provided)
+// - customer.ModifiedBy = Guid
+```
+
+**When to use:**
+- Modern applications with Guid-based user systems
+- ASP.NET Core Identity with Guid keys
+- Distributed systems requiring globally unique identifiers
+- New applications without legacy constraints
+
+#### 2. Long-Based User IDs
+
+For systems using long (int64) for user identification:
+
+```csharp
+// Entity with long user IDs
+public class Product : AuditBase<Guid, long>
+{
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+}
+
+// DbContext configured for long user IDs
+public class LongUserIdDbContext : DbContextBase<long>
+{
+    public LongUserIdDbContext(DbContextOptions options, IDbContextObserver observer)
+        : base(options, observer)
+    {
+    }
+    
+    public DbSet<Product> Products { get; set; }
+    
+    protected override void RegisterModels(ModelBuilder modelBuilder)
+    {
+        // Configure entities
+    }
+}
+
+// Usage
+using var context = new LongUserIdDbContext(options, observer);
+context.WithUserId(12345L);  // long user ID
+
+var product = new Product 
+{ 
+    Name = "Widget",
+    Price = 99.99m
+};
+
+context.Products.Add(product);
+await context.SaveChangesAsync();
+
+// Audit fields populated:
+// - product.CreatedBy = 12345L (long)
+// - product.ModifiedBy = 12345L (long)
+```
+
+**When to use:**
+- Legacy systems with sequence-based user IDs
+- Integration with existing databases using BIGINT user keys
+- Systems migrating from older authentication schemes
+- Enterprise applications with numeric user identifiers
+
+#### 3. Int-Based User IDs
+
+For systems using int (int32) for user identification:
+
+```csharp
+// Entity with int user IDs
+public class Order : AuditBase<Guid, int>
+{
+    public string OrderNumber { get; set; } = string.Empty;
+    public decimal TotalAmount { get; set; }
+}
+
+// DbContext configured for int user IDs
+public class IntUserIdDbContext : DbContextBase<int>
+{
+    public IntUserIdDbContext(DbContextOptions options, IDbContextObserver observer)
+        : base(options, observer)
+    {
+    }
+    
+    public DbSet<Order> Orders { get; set; }
+    
+    protected override void RegisterModels(ModelBuilder modelBuilder)
+    {
+        // Configure entities
+    }
+}
+
+// Usage
+using var context = new IntUserIdDbContext(options, observer);
+context.WithUserId(42);  // int user ID
+
+var order = new Order 
+{ 
+    OrderNumber = "ORD-001",
+    TotalAmount = 250.00m
+};
+
+context.Orders.Add(order);
+await context.SaveChangesAsync();
+
+// Audit fields populated:
+// - order.CreatedBy = 42 (int)
+// - order.ModifiedBy = 42 (int)
+```
+
+**When to use:**
+- Legacy systems with INT user IDs
+- Smaller-scale applications with limited user counts
+- Integration with systems using 32-bit user identifiers
+- Memory-constrained environments
+
+### AuditVisitor Configuration
+
+The `AuditVisitor` is automatically configured based on your `DbContext` type parameter. Here's how it works for each strategy:
+
+#### Guid-Based AuditVisitor (Default)
+
+```csharp
+// DbContextBase<Guid> for Guid-based user IDs
+public class MyDbContext : DbContextBase<Guid>
+{
+    // AuditVisitor<Guid> is automatically created
+    // Looks for entities implementing IAuditableMarker<Guid>
+}
+
+// Entities must use Guid for user IDs
+public class Customer : AuditBase  // Uses Guid for CreatedBy/ModifiedBy
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+// Or explicitly with generic syntax
+public class Customer : AuditBase<Guid, Guid>
+{
+    public string Name { get; set; } = string.Empty;
+}
+```
+
+#### Long-Based AuditVisitor
+
+```csharp
+// DbContextBase with long type parameter
+public class LongUserIdDbContext : DbContextBase<long>
+{
+    public LongUserIdDbContext(DbContextOptions options, IDbContextObserver observer)
+        : base(options, observer)
+    {
+    }
+    
+    // AuditVisitor<long> is automatically created
+    // Looks for entities implementing IAuditableMarker<long>
+    
+    public DbSet<Product> Products { get; set; }
+    
+    protected override void RegisterModels(ModelBuilder modelBuilder)
+    {
+        // Configure entities
+    }
+}
+
+// Entities must use long for user IDs
+public class Product : AuditBase<Guid, long>
+{
+    public string Name { get; set; } = string.Empty;
+}
+```
+
+#### Int-Based AuditVisitor
+
+```csharp
+// DbContextBase with int type parameter
+public class IntUserIdDbContext : DbContextBase<int>
+{
+    public IntUserIdDbContext(DbContextOptions options, IDbContextObserver observer)
+        : base(options, observer)
+    {
+    }
+    
+    // AuditVisitor<int> is automatically created
+    // Looks for entities implementing IAuditableMarker<int>
+    
+    public DbSet<Order> Orders { get; set; }
+    
+    protected override void RegisterModels(ModelBuilder modelBuilder)
+    {
+        // Configure entities
+    }
+}
+
+// Entities must use int for user IDs
+public class Order : AuditBase<Guid, int>
+{
+    public string OrderNumber { get; set; } = string.Empty;
+}
+```
+
+### Mixed Entity and User ID Strategies
+
+You can mix different **entity ID types** in the same context, but all entities must use the **same user ID type** as defined by your `DbContext`:
+
+```csharp
+// Context with long user IDs
+public class MyDbContext : DbContextBase<long>
+{
+    // All entities must use long for CreatedBy/ModifiedBy
+    
+    // ✅ Guid entity ID + long user ID
+    public DbSet<Customer> Customers { get; set; }  // AuditBase<Guid, long>
+    
+    // ✅ Long entity ID + long user ID
+    public DbSet<Product> Products { get; set; }  // AuditBase<long, long>
+    
+    // ✅ Int entity ID + long user ID
+    public DbSet<Order> Orders { get; set; }  // AuditBase<int, long>
+    
+    protected override void RegisterModels(ModelBuilder modelBuilder)
+    {
+        // Configure non-Guid entity IDs
+        modelBuilder.Entity<Product>()
+            .Property(p => p.Id)
+            .ValueGeneratedNever();
+            
+        modelBuilder.Entity<Order>()
+            .Property(o => o.Id)
+            .ValueGeneratedNever();
+    }
+}
+
+// Entity definitions
+public class Customer : AuditBase<Guid, long>  // Guid ID, long user ID
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+public class Product : AuditBase<long, long>  // long ID, long user ID
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+public class Order : AuditBase<int, long>  // int ID, long user ID
+{
+    public string OrderNumber { get; set; } = string.Empty;
+}
+
+// Usage
+using var context = new MyDbContext(options, observer);
+context.WithUserId(99999L);  // All entities will use this long user ID
+
+var customer = new Customer { Name = "John" };
+var product = new Product { Id = 12345L, Name = "Widget" };
+var order = new Order { Id = 1, OrderNumber = "ORD-001" };
+
+context.Customers.Add(customer);
+context.Products.Add(product);
+context.Orders.Add(order);
+
+await context.SaveChangesAsync();
+
+// All entities have CreatedBy = 99999L (long)
+```
+
+### Type Safety and Constraints
+
+The generic user ID support enforces type safety at compile time:
+
+```csharp
+// ✅ Correct - entity user ID type matches context user ID type
+public class MyDbContext : DbContextBase<long>
+{
+    public DbSet<Product> Products { get; set; }  // Product uses long user IDs
+}
+public class Product : AuditBase<Guid, long> { }
+
+// ❌ Compile error - entity user ID type doesn't match context
+public class MyDbContext : DbContextBase<long>
+{
+    public DbSet<Customer> Customers { get; set; }  // Customer uses Guid user IDs
+}
+public class Customer : AuditBase<Guid, Guid> { }  // Won't be audited!
+
+// The AuditVisitor<long> looks for IAuditableMarker<long>
+// but Customer implements IAuditableMarker<Guid>
+```
+
+### Backward Compatibility
+
+The library provides convenience wrappers for Guid-based systems:
+
+```csharp
+// Convenience wrapper for Guid-based entities
+public class Customer : AuditBase  // Inherits from AuditBase<Guid, Guid>
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+// DbContext for Guid-based user IDs
+public class MyDbContext : DbContextBase<Guid>
+{
+    public DbSet<Customer> Customers { get; set; }
+}
+
+// AuditBase is a convenience wrapper that inherits from AuditBase<Guid, Guid>
+// This provides a cleaner syntax for the common Guid-based scenario
+```
+
+### Migration Guide
+
+To migrate existing code to use different user ID types:
+
+```csharp
+// Step 1: Update your entities to specify both ID types
+// Before (old single-generic syntax - no longer supported)
+public class Product : AuditBase<long>  // long entity ID, Guid user ID (implicit)
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+// After (dual-generic syntax required)
+public class Product : AuditBase<long, long>  // long entity ID, long user ID (explicit)
+{
+    public string Name { get; set; } = string.Empty;
+}
+
+// Step 2: Update your DbContext to specify user ID type
+// Before (old non-generic wrapper - no longer supported)
+public class MyDbContext : DbContextBase  // Guid user IDs (implicit)
+{
+    public DbSet<Product> Products { get; set; }
+}
+
+// After (generic syntax required)
+public class MyDbContext : DbContextBase<long>  // long user IDs (explicit)
+{
+    public DbSet<Product> Products { get; set; }
+}
+
+// Step 3: Update your usage
+// Before
+context.WithUserId(Guid.NewGuid());
+
+// After
+context.WithUserId(12345L);
+
 ## Core Components
 
-### AuditBase and AuditBase<TId>
+### AuditBase and AuditBase<TId, TUserId>
 
 The `AuditBase` classes provide automatic audit field management:
 
 ```csharp
-// Non-generic version (Guid IDs)
-public abstract class AuditBase : AuditBase<Guid>
+// Convenience wrapper for Guid-based entities (Guid entity ID, Guid user ID)
+public abstract class AuditBase : AuditBase<Guid, Guid>
 {
     public AuditBase() => Id = Guid.NewGuid();
 }
 
-// Generic version (any ID type)
-public abstract class AuditBase<TId> : IAuditable<TId>, IDeleteable
+// Generic version (any ID type, any user ID type)
+public abstract class AuditBase<TId, TUserId> : IAuditable<TId, TUserId>, IDeleteable
+    where TUserId : struct
 {
     public TId Id { get; set; } = default!;
-    public Guid? CreatedBy { get; set; }
+    public TUserId? CreatedBy { get; set; }
     public DateTime CreatedOn { get; set; }
     public DateTime SynchronizedOn { get; set; }
-    public Guid? ModifiedBy { get; set; }
+    public TUserId? ModifiedBy { get; set; }
     public DateTime ModifiedOn { get; set; }
     public int Version { get; set; }
     public bool IsDeleted { get; set; }
 }
-```
 
-### DbContextBase
+### DbContextBase<TUserId>
 
-The `DbContextBase` provides:
-- Automatic audit field population
+The `DbContextBase<TUserId>` provides:
+- Automatic audit field population with generic user ID support
 - Soft delete support
 - Entity tracking notifications
 - User context support
+- Type-safe audit visitor pattern
+
+**Architecture Note**: The library uses a single generic `DbContextBase<TUserId>` implementation. For Guid-based systems, simply use `DbContextBase<Guid>` directly. The old non-generic `DbContextBase` wrapper has been removed to eliminate redundancy and improve type safety.
 
 ### IDbContextObserver
 
@@ -693,16 +1099,16 @@ public class LoggingDbContextObserver : IDbContextObserver
 You can use different ID types in the same application:
 
 ```csharp
-public class MyDbContext : DbContextBase
+public class MyDbContext : DbContextBase<Guid>
 {
     // Modern entities with Guid IDs
     public DbSet<Customer> Customers { get; set; }
     public DbSet<Order> Orders { get; set; }
     
-    // Legacy entities with long IDs
+    // Legacy entities with long IDs (but Guid user IDs)
     public DbSet<LegacyProduct> LegacyProducts { get; set; }
     
-    // Legacy entities with int IDs
+    // Legacy entities with int IDs (but Guid user IDs)
     public DbSet<LegacyOrder> LegacyOrders { get; set; }
     
     // Read-only legacy entities
@@ -820,25 +1226,27 @@ public async Task<PagedResult<Customer>> GetCustomersPagedAsync(int page = 1, in
 
 #### Entity Interfaces
 - **`IEntity<TId>`**: Base interface providing `TId Id` property for any entity
-- **`IAuditable<TId>`**: Extends `IEntity<TId>` with full audit trail support
-- **`IAuditable`**: Non-generic version for Guid-based entities (inherits from `IAuditable<Guid>`)
-- **`IAuditableMarker`**: Non-generic marker interface for runtime audit detection
+- **`IAuditable<TId, TUserId>`**: Extends `IEntity<TId>` with full audit trail support and generic user IDs
+- **`IAuditable`**: Convenience interface for Guid-based entities (inherits from `IAuditable<Guid, Guid>`)
+- **`IAuditableMarker<TUserId>`**: Generic marker interface for runtime audit detection
 - **`IReadOnlyEntity<TId>`**: Marker interface for read-only entities with automatic CUD protection
 - **`IDeleteable`**: Provides soft delete capability (`IsDeleted` property)
 
 #### Context Interfaces
-- **`IDbContext`**: Extends DbContext with user context support
+- **`IDbContext<TUserId>`**: Generic interface extending DbContext with user context support
 - **`IDbContextObserver`**: Entity tracking and state change notifications
 - **`IConnectionBuilder`**: Database connection management
 - **`IConnectionStringProvider`**: Connection string abstraction
-- **`IDbContextFactory<TContext>`**: Factory pattern for creating DbContext instances
+- **`IDbContextFactory<TContext>`**: Factory pattern for creating DbContext instances (where TContext : IDbContext<Guid>)
 
 ### Base Classes
 
 #### Entity Base Classes
-- **`AuditBase`**: Auditable entity with Guid ID (inherits from `AuditBase<Guid>`)
-- **`AuditBase<TId>`**: Generic auditable entity with custom ID type (Guid, int, long)
+- **`AuditBase`**: Convenience wrapper for Guid-based auditable entities (inherits from `AuditBase<Guid, Guid>`)
+- **`AuditBase<TId, TUserId>`**: Generic auditable entity with custom entity ID and user ID types
 - **`ReadOnlyEntityBase<TId>`**: Read-only entity with automatic CUD protection
+
+**Architecture Note**: The library now uses a single dual-generic `AuditBase<TId, TUserId>` implementation. The old single-generic `AuditBase<TId>` has been removed to eliminate redundancy. For entities with custom entity IDs but Guid user IDs, use `AuditBase<TId, Guid>` explicitly.
 
 ### Extension Methods
 
@@ -952,7 +1360,7 @@ public async Task<PagedResult<Customer>> GetCustomersPagedAsync(int page = 1, in
 
 1. **Use InMemory database for unit tests:**
    ```csharp
-   var options = new DbContextOptionsBuilder<DbContextBase>()
+   var options = new DbContextOptionsBuilder<MyDbContext>()
        .UseInMemoryDatabase(databaseName: $"TestDb_{Guid.NewGuid()}")
        .Options;
    ```

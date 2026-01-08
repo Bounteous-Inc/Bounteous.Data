@@ -12,12 +12,12 @@ namespace Bounteous.Data.Tests;
 
 public class GenericIdTests
 {
-    private readonly DbContextOptions<DbContextBase> dbContextOptions;
+    private readonly DbContextOptions dbContextOptions;
     private readonly Mock<IDbContextObserver> mockObserver;
 
     public GenericIdTests()
     {
-        dbContextOptions = new DbContextOptionsBuilder<DbContextBase>()
+        dbContextOptions = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
             .Options;
         
@@ -205,7 +205,7 @@ public class GenericIdTests
         // Arrange - Use a separate mock that doesn't require SaveChanges
         var mockObs = new Mock<IDbContextObserver>(MockBehavior.Loose);
         
-        var options = new DbContextOptionsBuilder<DbContextBase>()
+        var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
             .Options;
 
@@ -226,7 +226,7 @@ public class GenericIdTests
         // Arrange - Use a separate mock that doesn't require SaveChanges
         var mockObs = new Mock<IDbContextObserver>(MockBehavior.Loose);
         
-        var options = new DbContextOptionsBuilder<DbContextBase>()
+        var options = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
             .Options;
 
@@ -297,7 +297,7 @@ public class GenericIdTests
         // Act
         await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
         {
-            context.WithUserId(userId);
+            context.WithUserIdTyped(userId);
             context.LegacyProducts.Add(product);
             await context.SaveChangesAsync();
         }
@@ -326,7 +326,7 @@ public class GenericIdTests
 
         await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
         {
-            context.WithUserId(userId);
+            context.WithUserIdTyped(userId);
             context.LegacyOrders.Add(order);
             await context.SaveChangesAsync();
         }
@@ -338,7 +338,7 @@ public class GenericIdTests
         await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
         {
             var modifiedUserId = Guid.NewGuid();
-            context.WithUserId(modifiedUserId);
+            context.WithUserIdTyped(modifiedUserId);
             
             var retrieved = await context.LegacyOrders.FindAsync(333);
             retrieved!.TotalAmount = 75.00m;

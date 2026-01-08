@@ -7,21 +7,22 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data;
 
-public interface IDbContext
+public interface IDbContext<TUserId> where TUserId : struct
 {
-    DbContext WithUserId(Guid userId);
+    IDbContext<TUserId> WithUserId(TUserId userId);
 }
 
-public abstract class DbContextBase : DbContext, IDbContext, IDisposable
+public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
+    where TUserId : struct
 {
-    private readonly AuditVisitor auditVisitor;
+    private readonly AuditVisitor<TUserId> auditVisitor;
     private readonly IDbContextObserver? observer;
-    private Guid? TokenUserId { get; set; }
+    private TUserId? TokenUserId { get; set; }
 
-    protected DbContextBase(DbContextOptions<DbContextBase> options, IDbContextObserver observer)
+    protected DbContextBase(DbContextOptions options, IDbContextObserver observer)
         : base(options)
     {
-        auditVisitor = new AuditVisitor();
+        auditVisitor = new AuditVisitor<TUserId>();
         this.observer = observer;
         if (this.observer == null) return;
 
@@ -29,7 +30,7 @@ public abstract class DbContextBase : DbContext, IDbContext, IDisposable
         base.ChangeTracker.StateChanged += this.observer.OnStateChanged;
     }
 
-    public DbContext WithUserId(Guid userId)
+    IDbContext<TUserId> IDbContext<TUserId>.WithUserId(TUserId userId)
     {
         TokenUserId = userId;
         return this;
@@ -115,15 +116,14 @@ public abstract class DbContextBase : DbContext, IDbContext, IDisposable
     {
         ChangeTracker
             .Entries()
-            .Where(e => e is { Entity: IAuditableMarker, State: EntityState.Added })
+            .Where(e => e is { Entity: IAuditableMarker<TUserId>, State: EntityState.Added })
             .ForEach(x => auditVisitor.AcceptNew(x, TokenUserId));
 
         ChangeTracker
             .Entries()
-            .Where(e => e is { Entity: IAuditableMarker, State: EntityState.Modified })
+            .Where(e => e is { Entity: IAuditableMarker<TUserId>, State: EntityState.Modified })
             .ForEach(x => auditVisitor.AcceptModified(x, TokenUserId));
 
-        //deleted entities
         ChangeTracker
             .Entries()
             .Where(e => e is { Entity: IDeleteable, State: EntityState.Deleted })

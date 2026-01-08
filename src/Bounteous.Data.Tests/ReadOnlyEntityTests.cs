@@ -9,12 +9,12 @@ namespace Bounteous.Data.Tests;
 
 public class ReadOnlyEntityTests
 {
-    private readonly DbContextOptions<DbContextBase> dbContextOptions;
+    private readonly DbContextOptions dbContextOptions;
     private readonly Mock<IDbContextObserver> mockObserver;
 
     public ReadOnlyEntityTests()
     {
-        dbContextOptions = new DbContextOptionsBuilder<DbContextBase>()
+        dbContextOptions = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
             .Options;
         

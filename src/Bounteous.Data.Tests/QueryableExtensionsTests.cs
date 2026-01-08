@@ -1,3 +1,4 @@
+#pragma warning disable CS8603 // Possible null reference return - EF Core's Include extension never returns null
 using AwesomeAssertions;
 using Bounteous.Data.Exceptions;
 using Bounteous.Data.Extensions;
@@ -10,12 +11,12 @@ namespace Bounteous.Data.Tests;
 
 public class QueryableExtensionsTests
 {
-    private readonly DbContextOptions<DbContextBase> dbContextOptions;
+    private readonly DbContextOptions dbContextOptions;
     private readonly Mock<IDbContextObserver> mockObserver;
 
     public QueryableExtensionsTests()
     {
-        dbContextOptions = new DbContextOptionsBuilder<DbContextBase>()
+        dbContextOptions = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
             .Options;
         
