@@ -11,13 +11,13 @@ public class DbContextObserverTests : IDisposable
 {
     private readonly MockRepository mockRepository;
     private readonly Mock<IDbContextObserver> mockObserver;
-    private readonly DbContextOptions<DbContextBase> dbContextOptions;
+    private readonly DbContextOptions dbContextOptions;
 
     public DbContextObserverTests()
     {
         mockRepository = new MockRepository(MockBehavior.Strict);
         mockObserver = mockRepository.Create<IDbContextObserver>();
-        dbContextOptions = new DbContextOptionsBuilder<DbContextBase>()
+        dbContextOptions = new DbContextOptionsBuilder<TestDbContext>()
             .UseInMemoryDatabase(databaseName: "TestDatabase")
             .Options;
         

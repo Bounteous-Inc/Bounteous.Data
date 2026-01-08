@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data.Tests.Context;
 
-public class TestDbContext : DbContextBase
+public class TestDbContext : DbContextBase<Guid>, IDbContext<Guid>
 {
-    public TestDbContext(DbContextOptions<DbContextBase> options, IDbContextObserver observer)
+    public TestDbContext(DbContextOptions options, IDbContextObserver observer)
         : base(options, observer)
     {
     }

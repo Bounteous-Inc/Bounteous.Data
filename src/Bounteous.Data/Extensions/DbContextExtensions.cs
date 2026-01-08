@@ -16,7 +16,7 @@ public static class DbContextExtensions
 
     public static TDomain CreateNew<TModel, TDomain, TId>(this DbContext context, TModel model) 
         where TModel : class
-        where TDomain : class, IAuditable<TId>, new()
+        where TDomain : class, IAuditable<TId, Guid>, new()
     {
         var entity = new TDomain();
         context.Entry(entity).CurrentValues.SetValues(model);
@@ -31,7 +31,7 @@ public static class DbContextExtensions
     }
 
     public static TDomain AddNew<TDomain, TId>(this DbContext dbContext, TDomain newEntity)
-        where TDomain : class, IAuditable<TId>, new()
+        where TDomain : class, IAuditable<TId, Guid>, new()
     {
         var entity = dbContext.Set<TDomain>().Add(newEntity);
         return entity.Entity;
@@ -42,6 +42,6 @@ public static class DbContextExtensions
         => dbContext.Set<TDomain>();
 
     public static DbSet<TDomain> DbSet<TDomain, TId>(this DbContext dbContext) 
-        where TDomain : class, IAuditable<TId>, new()
+        where TDomain : class, IAuditable<TId, Guid>, new()
         => dbContext.Set<TDomain>();
 }

@@ -1,12 +1,13 @@
 namespace Bounteous.Data.Domain;
 
-public interface IAuditableMarker
+public interface IAuditableMarker<TUserId>
+    where TUserId : struct
 {
     DateTime CreatedOn { get; set; }
-    Guid? CreatedBy { get; set; }
+    TUserId? CreatedBy { get; set; }
     DateTime ModifiedOn { get; set; }
     DateTime SynchronizedOn { get; set; }
-    Guid? ModifiedBy { get; set; }
+    TUserId? ModifiedBy { get; set; }
     int Version { get; set; }
     bool IsDeleted { get; set; }
 }

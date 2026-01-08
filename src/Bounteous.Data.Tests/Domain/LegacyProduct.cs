@@ -3,7 +3,7 @@ using Bounteous.Data.Domain;
 
 namespace Bounteous.Data.Tests.Domain;
 
-public class LegacyProduct : AuditBase<long>
+public class LegacyProduct : AuditBase<long, Guid>
 {
     [MaxLength(200)]
     public string Name { get; set; } = string.Empty;

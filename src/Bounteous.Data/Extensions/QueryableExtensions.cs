@@ -11,16 +11,21 @@ public static class QueryableExtensions
         Expression<Func<T, bool>> predicate)
         => condition ? source.Where(predicate) : source;
 
+#pragma warning disable CS8603 
     public static IQueryable<T> IncludeIf<T>(this IQueryable<T> source, bool condition,
         Expression<Func<T, object>> navigationPropertyPath) where T : class
-        => condition ? source.Include(navigationPropertyPath) : source;
+     => condition ? source.Include(navigationPropertyPath) : source;
+#pragma warning restore CS8603
 
-    public static IAsyncEnumerable<T> ToPaginatedEnumerableAsync<T>(this IQueryable<T> query, int page = 1, 
-                                                                     int size = 50)
-        => query.Skip((page - 1) * size).Take(size).AsAsyncEnumerable();
+    extension<T>(IQueryable<T> query)
+    {
+        public IAsyncEnumerable<T> ToPaginatedEnumerableAsync(int page = 1, 
+            int size = 50)
+            => query.Skip((page - 1) * size).Take(size).AsAsyncEnumerable();
 
-    public static async Task<List<T>> ToPaginatedListAsync<T>(this IQueryable<T> query, int page = 1, int size = 50)
-        => await query.Skip((page - 1) * size).Take(size).ToListAsync();
+        public async Task<List<T>> ToPaginatedListAsync(int page = 1, int size = 50)
+            => await query.Skip((page - 1) * size).Take(size).ToListAsync();
+    }
 
     public static async Task<T> FindById<T>(this DbSet<T> dbSet, Guid id, 
         params Expression<Func<T, object>>[] includes) where T : class, IEntity<Guid>

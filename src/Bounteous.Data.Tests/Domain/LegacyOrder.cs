@@ -3,7 +3,7 @@ using Bounteous.Data.Domain;
 
 namespace Bounteous.Data.Tests.Domain;
 
-public class LegacyOrder : AuditBase<int>
+public class LegacyOrder : AuditBase<int, Guid>
 {
     public long CustomerId { get; set; }
     
