@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data.Tests.Context;
 
-public class TestDbContextFactory : DbContextFactory<TestDbContext>
+public class TestDbContextFactory : DbContextFactory<TestDbContext, Guid>
 {
     public TestDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer)
         : base(connectionBuilder, observer)

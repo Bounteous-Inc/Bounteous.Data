@@ -7,9 +7,9 @@ namespace Bounteous.Data.Sample.Services;
 
 public class ProductService : IProductService
 {
-    private readonly IDbContextFactory<SampleDbContext> _contextFactory;
+    private readonly IDbContextFactory<SampleDbContext, Guid> _contextFactory;
 
-    public ProductService(IDbContextFactory<SampleDbContext> contextFactory)
+    public ProductService(IDbContextFactory<SampleDbContext, Guid> contextFactory)
     {
         _contextFactory = contextFactory;
     }

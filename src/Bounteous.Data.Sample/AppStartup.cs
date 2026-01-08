@@ -16,7 +16,7 @@ public static class AppStartup
         services.AddSingleton(configuration);
         services.AddSingleton<IConnectionStringProvider, SampleConnectionStringProvider>();
         services.AddSingleton<IConnectionBuilder, ConnectionBuilder>();
-        services.AddScoped<IDbContextFactory<SampleDbContext>, SampleDbContextFactory>();
+        services.AddScoped<IDbContextFactory<SampleDbContext, Guid>, SampleDbContextFactory>();
 
         new ModuleStartup().RegisterServices(services);
 

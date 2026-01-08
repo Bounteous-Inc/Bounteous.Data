@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data.Sample.Data;
 
-public class SampleDbContextFactory : DbContextFactory<SampleDbContext>
+public class SampleDbContextFactory : DbContextFactory<SampleDbContext, Guid>
 {
     public SampleDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer)
         : base(connectionBuilder, observer)
