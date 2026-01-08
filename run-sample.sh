@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Bounteous.Data Sample Application Runner
-# This script builds the solution and runs the sample application
+# This script builds the solution, runs tests, and runs the sample application
 
 set -e  # Exit on error
 
@@ -12,11 +12,20 @@ dotnet build --configuration Release --output ./temp-build
 
 echo ""
 echo "========================================="
-echo "Running Bounteous.Data.Sample Application"
+echo "Running Automated Tests"
 echo "========================================="
-dotnet run --project src/Bounteous.Data.Sample/Bounteous.Data.Sample.csproj
+dotnet test --no-build --configuration Release --verbosity normal
 
 echo ""
 echo "========================================="
-echo "Sample application completed successfully!"
+echo "Running Bounteous.Data.Sample Application"
 echo "========================================="
+dotnet run --project src/Bounteous.Data.Sample/Bounteous.Data.Sample.csproj --no-build --configuration Release
+
+echo ""
+echo "========================================="
+echo "All validations completed successfully!"
+echo "========================================="
+
+# Clean up temporary build output
+rm -rf ./temp-build
