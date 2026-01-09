@@ -4,27 +4,18 @@ using Bounteous.Data.Exceptions;
 using Bounteous.Data.Extensions;
 using Bounteous.Data.Tests.Context;
 using Bounteous.Data.Tests.Domain;
+using Bounteous.Data.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
-using Moq;
 
-namespace Bounteous.Data.Tests;
+namespace Bounteous.Data.Tests.Domain;
 
-public class GenericIdTests
+/// <summary>
+/// Tests for AuditBase to verify audit field behavior across different ID types.
+/// Inherits from DbContextTestBase to reduce setup duplication.
+/// </summary>
+public class AuditBaseTests : DbContextTestBase
 {
-    private readonly DbContextOptions dbContextOptions;
-    private readonly Mock<IDbContextObserver> mockObserver;
-    private readonly TestIdentityProvider<Guid> identityProvider;
-
-    public GenericIdTests()
-    {
-        dbContextOptions = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-        
-        mockObserver = new Mock<IDbContextObserver>(MockBehavior.Loose);
-        identityProvider = new TestIdentityProvider<Guid>();
-    }
 
     [Fact]
     public async Task GuidBasedEntity_Should_Work_As_Before()
@@ -33,7 +24,7 @@ public class GenericIdTests
         var customer = new Customer { Name = "Test Customer" };
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.Customers.Add(customer);
             await context.SaveChangesAsync();
@@ -57,7 +48,7 @@ public class GenericIdTests
         };
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.LegacyProducts.Add(product);
             await context.SaveChangesAsync();
@@ -69,7 +60,7 @@ public class GenericIdTests
         product.ModifiedOn.Should().NotBe(default);
         
         // Verify it was saved
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var retrieved = await context.LegacyProducts.FindAsync(12345L);
             retrieved.Should().NotBeNull();
@@ -91,7 +82,7 @@ public class GenericIdTests
         };
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.LegacyOrders.Add(order);
             await context.SaveChangesAsync();
@@ -103,7 +94,7 @@ public class GenericIdTests
         order.ModifiedOn.Should().NotBe(default);
         
         // Verify it was saved
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var retrieved = await context.LegacyOrders.FindAsync(999);
             retrieved.Should().NotBeNull();
@@ -123,7 +114,7 @@ public class GenericIdTests
         };
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.LegacyCategories.Add(category);
             await context.SaveChangesAsync();
@@ -133,7 +124,7 @@ public class GenericIdTests
         category.Id.Should().Be(100L);
         
         // Verify it was saved
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var retrieved = await context.LegacyCategories.FindAsync(100L);
             retrieved.Should().NotBeNull();
@@ -153,14 +144,14 @@ public class GenericIdTests
             Price = 49.99m
         };
 
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.LegacyProducts.Add(product);
             await context.SaveChangesAsync();
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var found = await context.LegacyProducts.FindById<LegacyProduct, long>(54321L);
             
@@ -183,14 +174,14 @@ public class GenericIdTests
             TotalAmount = 150.00m
         };
 
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.LegacyOrders.Add(order);
             await context.SaveChangesAsync();
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var found = await context.LegacyOrders.FindById<LegacyOrder, int>(777);
             
@@ -204,15 +195,8 @@ public class GenericIdTests
     [Fact]
     public async Task FindById_Should_Throw_NotFoundException_For_Long_Id()
     {
-        // Arrange - Use a separate mock that doesn't require SaveChanges
-        var mockObs = new Mock<IDbContextObserver>(MockBehavior.Loose);
-        
-        var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-
         // Act & Assert
-        await using (var context = new TestDbContext(options, mockObs.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var exception = await Assert.ThrowsAsync<NotFoundException<LegacyProduct, long>>(
                 async () => await context.LegacyProducts.FindById<LegacyProduct, long>(99999L));
@@ -225,15 +209,8 @@ public class GenericIdTests
     [Fact]
     public async Task FindById_Should_Throw_NotFoundException_For_Int_Id()
     {
-        // Arrange - Use a separate mock that doesn't require SaveChanges
-        var mockObs = new Mock<IDbContextObserver>(MockBehavior.Loose);
-        
-        var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-
         // Act & Assert
-        await using (var context = new TestDbContext(options, mockObs.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var exception = await Assert.ThrowsAsync<NotFoundException<LegacyOrder, int>>(
                 async () => await context.LegacyOrders.FindById<LegacyOrder, int>(88888));
@@ -253,7 +230,7 @@ public class GenericIdTests
         var category = new LegacyCategory { Id = 200L, Name = "Mixed Category" };
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.Customers.Add(customer);
             context.LegacyProducts.Add(product);
@@ -263,7 +240,7 @@ public class GenericIdTests
         }
 
         // Assert - Verify all entities were saved with correct IDs
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var retrievedCustomer = await context.Customers.FindAsync(customer.Id);
             var retrievedProduct = await context.LegacyProducts.FindAsync(11111L);
@@ -297,7 +274,7 @@ public class GenericIdTests
         };
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.WithUserIdTyped(userId);
             context.LegacyProducts.Add(product);
@@ -326,7 +303,7 @@ public class GenericIdTests
             TotalAmount = 50.00m
         };
 
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.WithUserIdTyped(userId);
             context.LegacyOrders.Add(order);
@@ -337,7 +314,7 @@ public class GenericIdTests
 
         // Act - Modify the entity
         await Task.Delay(100); // Ensure time difference
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var modifiedUserId = Guid.NewGuid();
             context.WithUserIdTyped(modifiedUserId);
@@ -364,14 +341,14 @@ public class GenericIdTests
             Price = 200.00m
         };
 
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.LegacyProducts.Add(product);
             await context.SaveChangesAsync();
         }
 
         // Act - Delete the entity
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var retrieved = await context.LegacyProducts.FindAsync(44444L);
             if (retrieved != null)

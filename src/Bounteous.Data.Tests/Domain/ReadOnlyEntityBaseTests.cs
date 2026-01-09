@@ -2,32 +2,23 @@ using AwesomeAssertions;
 using Bounteous.Data.Exceptions;
 using Bounteous.Data.Tests.Context;
 using Bounteous.Data.Tests.Domain;
+using Bounteous.Data.Tests.Helpers;
 using Microsoft.EntityFrameworkCore;
-using Moq;
 
-namespace Bounteous.Data.Tests;
+namespace Bounteous.Data.Tests.Domain;
 
-public class ReadOnlyEntityTests
+/// <summary>
+/// Tests for ReadOnlyEntityBase to verify read-only entity behavior.
+/// Inherits from DbContextTestBase to reduce setup duplication.
+/// </summary>
+public class ReadOnlyEntityBaseTests : DbContextTestBase
 {
-    private readonly DbContextOptions dbContextOptions;
-    private readonly Mock<IDbContextObserver> mockObserver;
-    private readonly TestIdentityProvider<Guid> identityProvider;
-
-    public ReadOnlyEntityTests()
-    {
-        dbContextOptions = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-        
-        mockObserver = new Mock<IDbContextObserver>(MockBehavior.Loose);
-        identityProvider = new TestIdentityProvider<Guid>();
-    }
 
     [Fact]
     public async Task ReadOnlyEntity_Should_Allow_Query()
     {
         // Arrange & Act - Query readonly entities (empty result is fine, we're testing query capability)
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var products = await context.ReadOnlyLegacyProducts.ToListAsync();
             
@@ -49,7 +40,7 @@ public class ReadOnlyEntityTests
         };
 
         // Act & Assert
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.ReadOnlyLegacyProducts.Add(product);
             
@@ -66,7 +57,7 @@ public class ReadOnlyEntityTests
     public async Task ReadOnlyEntity_Should_Throw_On_Update()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var product = new ReadOnlyLegacyProduct
             {
@@ -95,7 +86,7 @@ public class ReadOnlyEntityTests
     public async Task ReadOnlyEntity_Should_Throw_On_Delete()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             var product = new ReadOnlyLegacyProduct
             {
@@ -133,7 +124,7 @@ public class ReadOnlyEntityTests
         };
 
         // Act & Assert
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.ReadOnlyLegacyCustomers.Add(customer);
             
@@ -165,7 +156,7 @@ public class ReadOnlyEntityTests
         };
 
         // Act & Assert - Writable should save, readonly should throw
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.LegacyProducts.Add(writableProduct);
             await context.SaveChangesAsync(); // Should succeed
@@ -173,7 +164,7 @@ public class ReadOnlyEntityTests
             writableProduct.Id.Should().Be(5000L);
         }
 
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             context.ReadOnlyLegacyProducts.Add(readonlyProduct);
             
@@ -188,7 +179,7 @@ public class ReadOnlyEntityTests
     public async Task ReadOnlyEntity_Can_Be_Queried_With_Linq()
     {
         // Arrange & Act - Verify LINQ queries work on readonly entities
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
+        await using (var context = CreateContext())
         {
             // Query with filters should not throw
             var query = context.ReadOnlyLegacyProducts
