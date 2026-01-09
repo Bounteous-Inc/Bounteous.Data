@@ -12,14 +12,16 @@ public class DbContextObserverTests : IDisposable
     private readonly MockRepository mockRepository;
     private readonly Mock<IDbContextObserver> mockObserver;
     private readonly DbContextOptions dbContextOptions;
+    private readonly TestIdentityProvider<Guid> identityProvider;
 
     public DbContextObserverTests()
     {
         mockRepository = new MockRepository(MockBehavior.Strict);
         mockObserver = mockRepository.Create<IDbContextObserver>();
         dbContextOptions = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase")
+            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
             .Options;
+        identityProvider = new TestIdentityProvider<Guid>();
         
         mockObserver.Setup(x => x.OnSaved());
         mockObserver.Setup(x => x.Dispose());
@@ -43,7 +45,7 @@ public class DbContextObserverTests : IDisposable
             .Setup(o => o.OnStateChanged(It.IsAny<object>(), It.IsAny<EntityStateChangedEventArgs>()));
         
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.Add(customer);
             await context.SaveChangesAsync();
@@ -78,7 +80,7 @@ public class DbContextObserverTests : IDisposable
             .Setup(o => o.OnStateChanged(It.IsAny<object>(), It.IsAny<EntityStateChangedEventArgs>()));
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var customer = new Customer { Name = "Customer1" };
             var order = new Order { CustomerId = customer.Id, Description = "Order1" };
@@ -125,7 +127,7 @@ public class DbContextObserverTests : IDisposable
             });
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.Add(customer);
             await context.SaveChangesAsync();

@@ -7,8 +7,11 @@ namespace Bounteous.Data.Sample.Data;
 
 public class SampleDbContext : DbContextBase<Guid>
 {
-    public SampleDbContext(DbContextOptions options, IDbContextObserver observer)
-        : base(options, observer)
+    public SampleDbContext(
+        DbContextOptions options, 
+        IDbContextObserver observer, 
+        IIdentityProvider<Guid> identityProvider)
+        : base(options, observer, identityProvider)
     {
     }
 

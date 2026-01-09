@@ -5,8 +5,8 @@ namespace Bounteous.Data.Tests.Context;
 
 public class TestDbContext : DbContextBase<Guid>, IDbContext<Guid>
 {
-    public TestDbContext(DbContextOptions options, IDbContextObserver observer)
-        : base(options, observer)
+    public TestDbContext(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid> identityProvider)
+        : base(options, observer, identityProvider)
     {
     }
 

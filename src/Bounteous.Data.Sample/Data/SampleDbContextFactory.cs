@@ -4,14 +4,17 @@ namespace Bounteous.Data.Sample.Data;
 
 public class SampleDbContextFactory : DbContextFactory<SampleDbContext, Guid>
 {
-    public SampleDbContextFactory(IConnectionBuilder connectionBuilder, IDbContextObserver observer)
-        : base(connectionBuilder, observer)
+    public SampleDbContextFactory(
+        IConnectionBuilder connectionBuilder, 
+        IDbContextObserver observer, 
+        IIdentityProvider<Guid> identityProvider)
+        : base(connectionBuilder, observer, identityProvider)
     {
     }
 
-    protected override SampleDbContext Create(DbContextOptions options, IDbContextObserver observer)
+    protected override SampleDbContext Create(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid> identityProvider)
     {
-        return new SampleDbContext(options, observer);
+        return new SampleDbContext(options, observer, identityProvider);
     }
 
     protected override DbContextOptions ApplyOptions(bool sensitiveDataLoggingEnabled = false)

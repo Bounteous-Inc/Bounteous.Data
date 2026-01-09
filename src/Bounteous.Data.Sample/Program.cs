@@ -29,6 +29,14 @@ try
 
     var userId = Guid.NewGuid();
     Log.Information("\n[SETUP] Test User ID: {UserId}", userId);
+    
+    // Set the user ID in the built-in IdentityProvider for automatic resolution
+    var identityProvider = serviceProvider.GetRequiredService<IIdentityProvider<Guid>>();
+    if (identityProvider is IdentityProvider<Guid> provider)
+    {
+        provider.SetCurrentUserId(userId);
+        Log.Information("[SETUP] ✓ User ID set in built-in IdentityProvider for automatic auditing");
+    }
 
     var customerService = serviceProvider.GetRequiredService<ICustomerService>();
     var productService = serviceProvider.GetRequiredService<IProductService>();
@@ -361,6 +369,54 @@ try
     Log.Information("[VERSION]   - Version incremented to: {Version}", updatedOrder.Version);
 
     // ═══════════════════════════════════════════════════════════════
+    // FEATURE 13: IIdentityProvider for Automatic User ID Resolution
+    // ═══════════════════════════════════════════════════════════════
+    Log.Information("\n╔═══════════════════════════════════════════════════════════════╗");
+    Log.Information("║ FEATURE 13: IIdentityProvider (Automatic User ID Resolution) ║");
+    Log.Information("╚═══════════════════════════════════════════════════════════════╝");
+    Log.Debug("[IDENTITY-PROVIDER] Testing automatic user ID resolution");
+
+    // Create a customer WITHOUT explicitly calling WithUserId
+    // The IIdentityProvider will automatically provide the user ID
+    using (var context = (SampleDbContext)contextFactory.Create())
+    {
+        var autoCustomer = new Customer
+        {
+            Name = "Auto User Context",
+            Email = "auto.context@example.com",
+            PhoneNumber = "555-AUTO"
+        };
+        context.Customers.Add(autoCustomer);
+        await context.SaveChangesAsync();
+        
+        Log.Information("[IDENTITY-PROVIDER] ✓ Customer created WITHOUT WithUserId() call");
+        Log.Information("[IDENTITY-PROVIDER]   - CreatedBy: {CreatedBy}", autoCustomer.CreatedBy);
+        Log.Information("[IDENTITY-PROVIDER]   - Expected: {Expected}", userId);
+        Log.Information("[IDENTITY-PROVIDER]   - Match: {Match}", autoCustomer.CreatedBy == userId);
+        Log.Information("[IDENTITY-PROVIDER]   - Source: IIdentityProvider.GetCurrentUserId()");
+    }
+
+    // Test that WithUserId still works and takes precedence
+    var overrideUserId = Guid.NewGuid();
+    using (var context = (SampleDbContext)contextFactory.Create().WithUserIdTyped(overrideUserId))
+    {
+        var overrideCustomer = new Customer
+        {
+            Name = "Override User Context",
+            Email = "override.context@example.com",
+            PhoneNumber = "555-OVER"
+        };
+        context.Customers.Add(overrideCustomer);
+        await context.SaveChangesAsync();
+        
+        Log.Information("[IDENTITY-PROVIDER] ✓ WithUserId() still works and takes precedence");
+        Log.Information("[IDENTITY-PROVIDER]   - CreatedBy: {CreatedBy}", overrideCustomer.CreatedBy);
+        Log.Information("[IDENTITY-PROVIDER]   - Expected: {Expected}", overrideUserId);
+        Log.Information("[IDENTITY-PROVIDER]   - Match: {Match}", overrideCustomer.CreatedBy == overrideUserId);
+        Log.Information("[IDENTITY-PROVIDER]   - Source: WithUserId() override");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // Summary
     // ═══════════════════════════════════════════════════════════════
     Log.Information("\n╔═══════════════════════════════════════════════════════════════╗");
@@ -378,6 +434,7 @@ try
     Log.Information("✓ FEATURE 10: WithUserId for User Context (Type-Safe)");
     Log.Information("✓ FEATURE 11: Complex Queries with Navigation Properties");
     Log.Information("✓ FEATURE 12: Version Tracking (Optimistic Concurrency)");
+    Log.Information("✓ FEATURE 13: IIdentityProvider (Automatic User ID Resolution)");
     Log.Information("\n╔═══════════════════════════════════════════════════════════════╗");
     Log.Information("║          ALL BOUNTEOUS.DATA FEATURES VALIDATED ✓              ║");
     Log.Information("╚═══════════════════════════════════════════════════════════════╝");

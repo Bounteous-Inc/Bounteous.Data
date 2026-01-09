@@ -16,9 +16,20 @@ public static class AppStartup
         services.AddSingleton(configuration);
         services.AddSingleton<IConnectionStringProvider, SampleConnectionStringProvider>();
         services.AddSingleton<IConnectionBuilder, ConnectionBuilder>();
-        services.AddScoped<IDbContextFactory<SampleDbContext, Guid>, SampleDbContextFactory>();
-
+        
+        // Register ModuleStartup first to get default registrations (including IdentityProvider)
         new ModuleStartup().RegisterServices(services);
+        
+        // The built-in IdentityProvider<Guid> is now registered by ModuleStartup
+        // We can resolve it and use it in the factory
+        services.AddScoped<IDbContextFactory<SampleDbContext, Guid>>(sp =>
+        {
+            var connectionBuilder = sp.GetRequiredService<IConnectionBuilder>();
+            var observer = sp.GetRequiredService<IDbContextObserver>();
+            var identityProvider = sp.GetRequiredService<IIdentityProvider<Guid>>();
+            
+            return new SampleDbContextFactory(connectionBuilder, observer, identityProvider);
+        });
 
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IProductService, ProductService>();

@@ -17,13 +17,19 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
 {
     private readonly AuditVisitor<TUserId> auditVisitor;
     private readonly IDbContextObserver? observer;
+    private readonly IIdentityProvider<TUserId> identityProvider;
     private TUserId TokenUserId { get; set; }
 
-    protected DbContextBase(DbContextOptions options, IDbContextObserver observer)
+    protected DbContextBase(
+        DbContextOptions options, 
+        IDbContextObserver? observer, 
+        IIdentityProvider<TUserId> identityProvider)
         : base(options)
     {
         auditVisitor = new AuditVisitor<TUserId>();
         this.observer = observer;
+        this.identityProvider = identityProvider;
+        
         if (this.observer == null) return;
 
         base.ChangeTracker.Tracked += this.observer.OnEntityTracked!;
@@ -114,7 +120,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
 
     private void ApplyAuditVisitor()
     {
-        var userId = EqualityComparer<TUserId>.Default.Equals(TokenUserId, default) ? null : (TUserId?)TokenUserId;
+        var userId = GetEffectiveUserId();
         
         ChangeTracker
             .Entries()
@@ -130,5 +136,17 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
             .Entries()
             .Where(e => e is { Entity: IDeleteable, State: EntityState.Deleted })
             .ForEach(x => auditVisitor.AcceptDeleted(x, userId));
+    }
+
+    private TUserId? GetEffectiveUserId()
+    {
+        if (!EqualityComparer<TUserId>.Default.Equals(TokenUserId, default))
+            return TokenUserId;
+
+        var userId = identityProvider.GetCurrentUserId();
+        if (!EqualityComparer<TUserId>.Default.Equals(userId, default))
+            return userId;
+
+        return null;
     }
 }

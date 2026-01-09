@@ -13,6 +13,7 @@ public class QueryableExtensionsTests
 {
     private readonly DbContextOptions dbContextOptions;
     private readonly Mock<IDbContextObserver> mockObserver;
+    private readonly TestIdentityProvider<Guid> identityProvider;
 
     public QueryableExtensionsTests()
     {
@@ -21,13 +22,14 @@ public class QueryableExtensionsTests
             .Options;
         
         mockObserver = new Mock<IDbContextObserver>(MockBehavior.Loose);
+        identityProvider = new TestIdentityProvider<Guid>();
     }
 
     [Fact]
     public async Task WhereIf_Should_Apply_Predicate_When_Condition_True()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.AddRange(
                 new Customer { Name = "Alice" },
@@ -38,7 +40,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var results = await context.Customers
                 .AsQueryable()
@@ -55,7 +57,7 @@ public class QueryableExtensionsTests
     public async Task WhereIf_Should_Not_Apply_Predicate_When_Condition_False()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.AddRange(
                 new Customer { Name = "Alice" },
@@ -66,7 +68,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var results = await context.Customers
                 .AsQueryable()
@@ -82,7 +84,7 @@ public class QueryableExtensionsTests
     public async Task WhereIf_Should_Chain_Multiple_Conditions()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.AddRange(
                 new Customer { Name = "Alice" },
@@ -93,7 +95,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var results = await context.Customers
                 .AsQueryable()
@@ -111,7 +113,7 @@ public class QueryableExtensionsTests
     public async Task ToPaginatedListAsync_Should_Return_Correct_Page()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             for (int i = 1; i <= 10; i++)
             {
@@ -121,7 +123,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var page1 = await context.Customers
                 .OrderBy(c => c.Name)
@@ -144,7 +146,7 @@ public class QueryableExtensionsTests
     public async Task ToPaginatedListAsync_Should_Handle_Empty_Results()
     {
         // Arrange & Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var results = await context.Customers
                 .Where(c => c.Name == "NonExistent")
@@ -159,14 +161,14 @@ public class QueryableExtensionsTests
     public async Task ToPaginatedListAsync_Should_Handle_Page_Beyond_Results()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.Add(new Customer { Name = "Customer 1" });
             await context.SaveChangesAsync();
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var results = await context.Customers
                 .ToPaginatedListAsync(5, 10);
@@ -180,7 +182,7 @@ public class QueryableExtensionsTests
     public async Task ToPaginatedEnumerableAsync_Should_Return_Correct_Page()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             for (int i = 1; i <= 10; i++)
             {
@@ -190,7 +192,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var page = context.Customers
                 .OrderBy(c => c.Name)
@@ -212,7 +214,7 @@ public class QueryableExtensionsTests
     public async Task ToPaginatedListAsync_Should_Use_Default_Page_Size()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             for (int i = 1; i <= 60; i++)
             {
@@ -222,7 +224,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var results = await context.Customers.ToPaginatedListAsync(); // Default page 1, size 50
             
@@ -237,14 +239,14 @@ public class QueryableExtensionsTests
         // Arrange
         var customer = new Customer { Name = "Test Customer" };
         
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.Add(customer);
             await context.SaveChangesAsync();
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var found = await context.Customers.FindById(customer.Id);
             
@@ -262,7 +264,7 @@ public class QueryableExtensionsTests
         var nonExistentId = Guid.NewGuid();
 
         // Act & Assert
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             await Assert.ThrowsAsync<NotFoundException<Customer>>(
                 async () => await context.Customers.FindById(nonExistentId));
@@ -277,14 +279,14 @@ public class QueryableExtensionsTests
         var customer2 = new Customer { Name = "Customer 2" };
         var customer3 = new Customer { Name = "Customer 3" };
         
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.AddRange(customer1, customer2, customer3);
             await context.SaveChangesAsync();
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var found = await context.Customers.FindById(customer2.Id);
             
@@ -305,14 +307,14 @@ public class QueryableExtensionsTests
             Description = "Test Order"
         };
         
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Orders.Add(order);
             await context.SaveChangesAsync();
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var found = await context.Orders.FindById(order.Id);
             
@@ -334,7 +336,7 @@ public class QueryableExtensionsTests
             Description = "Test Order"
         };
         
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.Add(customer);
             context.Orders.Add(order);
@@ -342,7 +344,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var query = context.Orders
                 .AsQueryable()
@@ -368,7 +370,7 @@ public class QueryableExtensionsTests
             Description = "Test Order"
         };
         
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.Add(customer);
             context.Orders.Add(order);
@@ -376,7 +378,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var query = context.Orders
                 .AsQueryable()
@@ -406,7 +408,7 @@ public class QueryableExtensionsTests
             ProductName = "Test Product"
         };
         
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.Add(customer);
             context.Orders.Add(order);
@@ -415,7 +417,7 @@ public class QueryableExtensionsTests
         }
 
         // Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var query = context.Orders
                 .AsQueryable()
@@ -450,7 +452,7 @@ public class QueryableExtensionsTests
             ProductName = "Test Product"
         };
         
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.Customers.Add(customer);
             context.Orders.Add(order);
@@ -459,7 +461,7 @@ public class QueryableExtensionsTests
         }
 
         // Act - Include customer but not items
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var query = context.Orders
                 .AsQueryable()
@@ -480,7 +482,7 @@ public class QueryableExtensionsTests
     public async Task IncludeIf_Should_Work_With_Empty_QuerySet()
     {
         // Arrange & Act
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var query = context.Orders
                 .AsQueryable()
