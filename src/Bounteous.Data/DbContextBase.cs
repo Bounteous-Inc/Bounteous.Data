@@ -17,13 +17,13 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
 {
     private readonly AuditVisitor<TUserId> auditVisitor;
     private readonly IDbContextObserver? observer;
-    private readonly IIdentityProvider<TUserId>? identityProvider;
+    private readonly IIdentityProvider<TUserId> identityProvider;
     private TUserId TokenUserId { get; set; }
 
     protected DbContextBase(
         DbContextOptions options, 
         IDbContextObserver? observer, 
-        IIdentityProvider<TUserId>? identityProvider = null)
+        IIdentityProvider<TUserId> identityProvider)
         : base(options)
     {
         auditVisitor = new AuditVisitor<TUserId>();
@@ -143,8 +143,9 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
         if (!EqualityComparer<TUserId>.Default.Equals(TokenUserId, default))
             return TokenUserId;
 
-        if (identityProvider != null)
-            return identityProvider.GetCurrentUserId();
+        var userId = identityProvider.GetCurrentUserId();
+        if (!EqualityComparer<TUserId>.Default.Equals(userId, default))
+            return userId;
 
         return null;
     }

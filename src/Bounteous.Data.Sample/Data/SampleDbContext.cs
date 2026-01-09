@@ -10,7 +10,7 @@ public class SampleDbContext : DbContextBase<Guid>
     public SampleDbContext(
         DbContextOptions options, 
         IDbContextObserver observer, 
-        IIdentityProvider<Guid>? identityProvider = null)
+        IIdentityProvider<Guid> identityProvider)
         : base(options, observer, identityProvider)
     {
     }

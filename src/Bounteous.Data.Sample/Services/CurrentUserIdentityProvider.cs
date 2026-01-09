@@ -10,7 +10,7 @@ namespace Bounteous.Data.Sample.Services;
 /// </summary>
 public class SampleIdentityProvider : IIdentityProvider<Guid>
 {
-    private static Guid? _currentUserId;
+    private static Guid _currentUserId;
 
     /// <summary>
     /// Sets the current user ID for the sample application.
@@ -26,10 +26,10 @@ public class SampleIdentityProvider : IIdentityProvider<Guid>
     /// </summary>
     public static void ClearCurrentUserId()
     {
-        _currentUserId = null;
+        _currentUserId = default;
     }
 
-    public Guid? GetCurrentUserId()
+    public Guid GetCurrentUserId()
     {
         return _currentUserId;
     }
@@ -67,7 +67,7 @@ public class HttpContextIdentityProvider : IIdentityProvider<Guid>
 /// </summary>
 public class SampleIdentityProviderLong : IIdentityProvider<long>
 {
-    private static long? _currentUserId;
+    private static long _currentUserId;
 
     public static void SetCurrentUserId(long userId)
     {
@@ -76,10 +76,10 @@ public class SampleIdentityProviderLong : IIdentityProvider<long>
 
     public static void ClearCurrentUserId()
     {
-        _currentUserId = null;
+        _currentUserId = default;
     }
 
-    public long? GetCurrentUserId()
+    public long GetCurrentUserId()
     {
         return _currentUserId;
     }

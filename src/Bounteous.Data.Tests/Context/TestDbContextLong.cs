@@ -5,8 +5,8 @@ namespace Bounteous.Data.Tests.Context;
 
 public class TestDbContextLong : DbContextBase<long>
 {
-    public TestDbContextLong(DbContextOptions options, IDbContextObserver observer)
-        : base(options, observer)
+    public TestDbContextLong(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<long> identityProvider)
+        : base(options, observer, identityProvider)
     {
     }
 

@@ -100,19 +100,48 @@ This combination allows developers to focus on business logic while ensuring dat
 
 ## Features
 
-- **Automatic Auditing**: Built-in audit trail support with `IAuditable<TId, TUserId>` interface and convenience wrappers
-- **Automatic User ID Resolution**: `IIdentityProvider<TUserId>` interface for automatic user ID retrieval from authentication context
-- **Generic User ID Support**: Flexible user identification with support for `Guid`, `long`, `int`, or any struct type for audit tracking
-- **Flexible ID Strategies**: Support for Guid, int, and long primary keys with generic `IEntity<TId>`
-- **Clean Generic Architecture**: Single generic implementations with type-safe convenience wrappers for Guid-based systems
-- **Read-Only Entities**: Automatic protection against Create, Update, and Delete operations for legacy tables
-- **Soft Delete**: Support for soft delete operations with `IDeleteable` interface
-- **DbContext Factory Pattern**: Simplified context creation and management with identity provider support
-- **Connection Management**: Abstracted connection string and database connection handling
-- **Extension Methods**: Rich set of LINQ and DbContext extensions
-- **Value Converters**: Built-in converters for DateTime and Enum handling
-- **Observer Pattern**: Entity tracking and state change notifications
-- **Query Helpers**: Simplified query operations with pagination support
+### Core Auditing & Tracking
+- **Automatic Auditing**: Built-in audit trail with `CreatedBy`, `CreatedOn`, `ModifiedBy`, `ModifiedOn` automatically populated on all entity changes
+- **Version Tracking**: Optimistic concurrency control with automatic version incrementing on every update
+- **Soft Delete Support**: Logical deletion with `IsDeleted` flag, maintaining referential integrity and audit trail
+- **Automatic User ID Resolution**: `IIdentityProvider<TUserId>` interface for seamless user ID retrieval from authentication context
+- **User Context Override**: `WithUserId()` method for operation-level user attribution (admin impersonation, background jobs, migrations)
+
+### Flexible Identity Strategies
+- **Generic User ID Support**: Support for `Guid`, `long`, `int`, or any struct type for user identification in audit fields
+- **Generic Entity ID Support**: Support for `Guid`, `long`, `int` primary keys with type-safe generic `IEntity<TId>`
+- **Mixed ID Strategies**: Use different ID types for entities (e.g., `Guid`) and users (e.g., `long`) in the same application
+- **Type Safety**: Compile-time type checking ensures correct ID types throughout your application
+
+### Entity Base Classes
+- **AuditBase**: Modern entities with `Guid` IDs and full audit support (CreatedBy, ModifiedBy, Version, IsDeleted)
+- **AuditBase<TId>**: Legacy entities with custom ID types (`long`, `int`) and full audit support
+- **ReadOnlyEntityBase<TId>**: Query-only entities with automatic protection against Create, Update, Delete operations
+- **Clean Architecture**: Convenience wrappers over generic implementations for common scenarios
+
+### Data Access Patterns
+- **DbContext Factory Pattern**: Simplified context creation and lifecycle management with `IDbContextFactory<T, TUserId>`
+- **Connection Management**: Abstracted connection string and database connection handling via `IConnectionStringProvider`
+- **Observer Pattern**: Entity lifecycle events (`OnEntityTracked`, `OnStateChanged`, `OnSaved`) for logging, caching, business rules
+- **Unit of Work**: Built-in transaction management through EF Core's `DbContext`
+
+### Query Extensions & Helpers
+- **Conditional Queries**: `WhereIf()` and `IncludeIf()` for dynamic query building
+- **Pagination**: `ToPaginatedListAsync()` and `ToPaginatedEnumerableAsync()` with total count and page metadata
+- **FindById Extensions**: Type-safe `FindById<TEntity, TId>()` with automatic `NotFoundException` handling
+- **LINQ Enhancements**: Rich set of extension methods for common query patterns
+
+### Data Conversion & Storage
+- **Value Converters**: Built-in converters for `DateTime` (UTC normalization) and `Enum` (string storage)
+- **Custom Converters**: Extensible converter system for domain-specific data transformations
+- **Type-Safe Enums**: Store enums as strings in database while maintaining type safety in code
+
+### Enterprise Features
+- **Multi-Database Support**: Works with SQL Server, PostgreSQL, MySQL, SQLite via EF Core providers
+- **Migration Support**: Design-time DbContext creation for EF Core migrations
+- **Testing Support**: In-memory database support for unit testing
+- **Dependency Injection**: First-class DI support with scoped, singleton, and transient lifetimes
+- **Observability**: Comprehensive logging and event hooks for monitoring and debugging
 
 ## Installation
 
@@ -1126,18 +1155,209 @@ public class CustomerService
 
 The `DbContext` uses this priority order for determining the user ID:
 
-1. **Manual override** - If you call `WithUserId()`, that takes precedence
-2. **IIdentityProvider** - If configured, calls `GetCurrentUserId()`
-3. **Default** - If neither is available, audit fields get default values (`0L` for long, `Guid.Empty` for Guid)
+1. **`WithUserId()` override** - Operation-level user attribution (highest priority)
+2. **`IIdentityProvider`** - Application-level authenticated user context
+3. **Default value** - `default(TUserId)` if neither is available (e.g., `0` for `int`, `Guid.Empty` for `Guid`)
 
-#### Manual Override Example
+This three-tier approach provides maximum flexibility while maintaining clean separation of concerns.
 
-You can still override the `IIdentityProvider` for specific operations:
+### Understanding WithUserId() vs IIdentityProvider
+
+Both mechanisms serve distinct but complementary purposes in user attribution:
+
+#### IIdentityProvider - Application-Level Context
+
+**Purpose**: Represents the authenticated user making the request
+
+**Scope**: Request/session-wide (e.g., HTTP request, background job scope)
+
+**Source**: Authentication system (JWT claims, session, service account)
+
+**Lifetime**: Managed by DI container (typically scoped)
+
+**Use Case**: "Who is the authenticated user making this request?"
+
+**Example**:
+```csharp
+// Web API - User authenticated via JWT
+// IIdentityProvider.GetCurrentUserId() returns the authenticated user's ID
+public class CustomerController : ControllerBase
+{
+    private readonly IDbContextFactory<MyDbContext, long> _factory;
+    
+    public async Task<IActionResult> CreateCustomer(CreateCustomerRequest request)
+    {
+        using var context = _factory.Create();
+        
+        // No WithUserId() needed - IIdentityProvider automatically provides
+        // the authenticated user's ID from the JWT token
+        var customer = new Customer { Name = request.Name };
+        context.Customers.Add(customer);
+        await context.SaveChangesAsync();
+        
+        // customer.CreatedBy is automatically set to the authenticated user's ID
+        return Ok(customer);
+    }
+}
+```
+
+#### WithUserId() - Operation-Level Override
+
+**Purpose**: Override user attribution for specific operations
+
+**Scope**: Single `DbContext` instance, specific operation only
+
+**Source**: Explicit business logic decision in code
+
+**Lifetime**: Exists only for that `DbContext` instance
+
+**Use Case**: "For THIS specific operation, attribute it to a different user"
+
+**Example**:
+```csharp
+// Admin creating order on behalf of customer
+public async Task<Order> CreateOrderOnBehalfOfCustomer(long customerId, OrderRequest request)
+{
+    using var context = _factory.Create();
+    
+    // Admin is authenticated (IIdentityProvider returns admin's ID)
+    // But we want the order attributed to the customer
+    context.WithUserId(customerId);
+    
+    var order = new Order { /* ... */ };
+    context.Orders.Add(order);
+    await context.SaveChangesAsync();
+    
+    // order.CreatedBy = customerId (not the admin's ID)
+    return order;
+}
+```
+
+### Real-World Use Cases for WithUserId()
+
+#### 1. Admin Impersonation
+```csharp
+// Admin (ID: 123) creating data on behalf of customer (ID: 456)
+public async Task AdminCreateCustomerDataAsync(long customerId, string data)
+{
+    using var context = _factory.Create().WithUserId(customerId);
+    
+    // IIdentityProvider returns 123 (admin)
+    // But CreatedBy will be 456 (customer)
+    var entity = new CustomerData { Data = data };
+    context.CustomerData.Add(entity);
+    await context.SaveChangesAsync();
+}
+```
+
+#### 2. Background Jobs with User Context
+```csharp
+// Background job processing user-specific data
+public async Task ProcessUserDataBatchAsync(List<long> userIds)
+{
+    foreach (var userId in userIds)
+    {
+        using var context = _factory.Create().WithUserId(userId);
+        
+        // Each operation gets correct user attribution
+        var data = await ProcessDataForUser(userId);
+        context.ProcessedData.Add(data);
+        await context.SaveChangesAsync();
+        
+        // data.CreatedBy = userId (not the background service account)
+    }
+}
+```
+
+#### 3. Data Migration with Historical Attribution
+```csharp
+// Migration script preserving original user IDs
+public async Task MigrateHistoricalDataAsync()
+{
+    var historicalRecords = await GetHistoricalRecords();
+    
+    foreach (var record in historicalRecords)
+    {
+        using var context = _factory.Create().WithUserId(record.OriginalUserId);
+        
+        var entity = new ModernEntity 
+        { 
+            Data = record.Data,
+            // CreatedBy will be record.OriginalUserId (preserving history)
+        };
+        context.ModernEntities.Add(entity);
+        await context.SaveChangesAsync();
+    }
+}
+```
+
+#### 4. System Operations
+```csharp
+// System-initiated operations (e.g., automated cleanup)
+public async Task SystemCleanupAsync()
+{
+    const long SYSTEM_USER_ID = 0;
+    using var context = _factory.Create().WithUserId(SYSTEM_USER_ID);
+    
+    // Mark old records as deleted by system
+    var oldRecords = await context.Records
+        .Where(r => r.CreatedOn < DateTime.UtcNow.AddYears(-5))
+        .ToListAsync();
+    
+    context.Records.RemoveRange(oldRecords);
+    await context.SaveChangesAsync();
+    
+    // All deletions attributed to SYSTEM_USER_ID
+}
+```
+
+#### 5. Multi-Tenant Operations
+```csharp
+// Admin performing bulk operations across user contexts
+public async Task BulkUpdateUserPreferencesAsync(Dictionary<long, Preferences> userPreferences)
+{
+    foreach (var (userId, preferences) in userPreferences)
+    {
+        using var context = _factory.Create().WithUserId(userId);
+        
+        var userPrefs = await context.UserPreferences.FindById(userId);
+        userPrefs.UpdateFrom(preferences);
+        await context.SaveChangesAsync();
+        
+        // ModifiedBy = userId (not the admin performing the bulk operation)
+    }
+}
+```
+
+### Key Architectural Benefits
+
+**Separation of Concerns**:
+- `IIdentityProvider` handles authentication context (who is logged in)
+- `WithUserId()` handles business logic attribution (who should be credited)
+
+**No Side Effects**:
+- `WithUserId()` only affects the specific `DbContext` instance
+- Does not mutate the shared `IIdentityProvider` service
+- Other concurrent operations remain unaffected
+
+**Flexibility**:
+- Default behavior: automatic user ID from authentication
+- Override when needed: explicit control for special cases
+- Clean fallback: graceful handling when neither is available
+
+**Testability**:
+- Easy to test with mock `IIdentityProvider`
+- Easy to test specific user contexts with `WithUserId()`
+- No global state to manage
+
+### Manual Override Example
+
+You can override the `IIdentityProvider` for specific operations while still using it for others:
 
 ```csharp
 public async Task CreateCustomerAsSystemAsync(string name, string email)
 {
-    using var context = _contextFactory.Create();
+    using var context = _factory.Create();
     
     // Override the IIdentityProvider for this specific operation
     var systemUserId = 1L; // System user ID
@@ -1147,6 +1367,19 @@ public async Task CreateCustomerAsSystemAsync(string name, string email)
     context.Customers.Add(customer);
     
     await context.SaveChangesAsync(); // Uses systemUserId instead of IIdentityProvider
+    // customer.CreatedBy = 1L (system user)
+}
+
+public async Task CreateCustomerAsAuthenticatedUserAsync(string name, string email)
+{
+    using var context = _factory.Create();
+    
+    // No WithUserId() - uses IIdentityProvider automatically
+    var customer = new Customer { Name = name, Email = email };
+    context.Customers.Add(customer);
+    
+    await context.SaveChangesAsync(); // Uses IIdentityProvider.GetCurrentUserId()
+    // customer.CreatedBy = <authenticated user's ID>
 }
 ```
 

@@ -11,6 +11,7 @@ public class ReadOnlyEntityTests
 {
     private readonly DbContextOptions dbContextOptions;
     private readonly Mock<IDbContextObserver> mockObserver;
+    private readonly TestIdentityProvider<Guid> identityProvider;
 
     public ReadOnlyEntityTests()
     {
@@ -19,13 +20,14 @@ public class ReadOnlyEntityTests
             .Options;
         
         mockObserver = new Mock<IDbContextObserver>(MockBehavior.Loose);
+        identityProvider = new TestIdentityProvider<Guid>();
     }
 
     [Fact]
     public async Task ReadOnlyEntity_Should_Allow_Query()
     {
         // Arrange & Act - Query readonly entities (empty result is fine, we're testing query capability)
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var products = await context.ReadOnlyLegacyProducts.ToListAsync();
             
@@ -47,7 +49,7 @@ public class ReadOnlyEntityTests
         };
 
         // Act & Assert
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.ReadOnlyLegacyProducts.Add(product);
             
@@ -64,7 +66,7 @@ public class ReadOnlyEntityTests
     public async Task ReadOnlyEntity_Should_Throw_On_Update()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var product = new ReadOnlyLegacyProduct
             {
@@ -93,7 +95,7 @@ public class ReadOnlyEntityTests
     public async Task ReadOnlyEntity_Should_Throw_On_Delete()
     {
         // Arrange
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             var product = new ReadOnlyLegacyProduct
             {
@@ -131,7 +133,7 @@ public class ReadOnlyEntityTests
         };
 
         // Act & Assert
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.ReadOnlyLegacyCustomers.Add(customer);
             
@@ -163,7 +165,7 @@ public class ReadOnlyEntityTests
         };
 
         // Act & Assert - Writable should save, readonly should throw
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.LegacyProducts.Add(writableProduct);
             await context.SaveChangesAsync(); // Should succeed
@@ -171,7 +173,7 @@ public class ReadOnlyEntityTests
             writableProduct.Id.Should().Be(5000L);
         }
 
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             context.ReadOnlyLegacyProducts.Add(readonlyProduct);
             
@@ -186,7 +188,7 @@ public class ReadOnlyEntityTests
     public async Task ReadOnlyEntity_Can_Be_Queried_With_Linq()
     {
         // Arrange & Act - Verify LINQ queries work on readonly entities
-        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContext(dbContextOptions, mockObserver.Object, identityProvider))
         {
             // Query with filters should not throw
             var query = context.ReadOnlyLegacyProducts

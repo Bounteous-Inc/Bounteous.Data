@@ -11,17 +11,27 @@ namespace Bounteous.Data.Tests;
 public class GenericUserIdTests : IDisposable
 {
     private readonly MockRepository mockRepository;
+    private readonly DbContextOptions<TestDbContextInt> dbContextOptionsInt;
+    private readonly DbContextOptions<TestDbContextLong> dbContextOptionsLong;
     private readonly Mock<IDbContextObserver> mockObserver;
+    private readonly TestIdentityProvider<int> identityProviderInt;
+    private readonly TestIdentityProvider<long> identityProviderLong;
 
     public GenericUserIdTests()
     {
         mockRepository = new MockRepository(MockBehavior.Strict);
-        mockObserver = mockRepository.Create<IDbContextObserver>();
         
-        mockObserver.Setup(x => x.OnSaved());
-        mockObserver.Setup(x => x.Dispose());
-        mockObserver.Setup(x => x.OnEntityTracked(It.IsAny<object>(), It.IsAny<Microsoft.EntityFrameworkCore.ChangeTracking.EntityTrackedEventArgs>()));
-        mockObserver.Setup(x => x.OnStateChanged(It.IsAny<object>(), It.IsAny<Microsoft.EntityFrameworkCore.ChangeTracking.EntityStateChangedEventArgs>()));
+        dbContextOptionsInt = new DbContextOptionsBuilder<TestDbContextInt>()
+            .UseInMemoryDatabase(databaseName: $"TestDatabaseInt_{Guid.NewGuid()}")
+            .Options;
+            
+        dbContextOptionsLong = new DbContextOptionsBuilder<TestDbContextLong>()
+            .UseInMemoryDatabase(databaseName: $"TestDatabaseLong_{Guid.NewGuid()}")
+            .Options;
+        
+        mockObserver = new Mock<IDbContextObserver>(MockBehavior.Loose);
+        identityProviderInt = new TestIdentityProvider<int>();
+        identityProviderLong = new TestIdentityProvider<long>();
     }
 
     [Fact]
@@ -41,7 +51,7 @@ public class GenericUserIdTests : IDisposable
         };
 
         // Act
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             context.WithUserIdTyped(userId);
             context.Products.Add(product);
@@ -49,7 +59,7 @@ public class GenericUserIdTests : IDisposable
         }
 
         // Assert
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             var savedProduct = await context.Products.FirstOrDefaultAsync(p => p.Id == product.Id);
             savedProduct.Should().NotBeNull();
@@ -65,10 +75,6 @@ public class GenericUserIdTests : IDisposable
     public async Task DbContextBase_With_Long_UserId_Should_Update_Audit_Fields_On_Modify()
     {
         // Arrange
-        var dbContextOptions = new DbContextOptionsBuilder<DbContextBase<long>>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-
         var createUserId = 11111L;
         var updateUserId = 22222L;
         var product = new ProductWithLongUserId
@@ -79,7 +85,7 @@ public class GenericUserIdTests : IDisposable
         };
 
         // Act - Create
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             context.WithUserIdTyped(createUserId);
             context.Products.Add(product);
@@ -89,7 +95,7 @@ public class GenericUserIdTests : IDisposable
         await Task.Delay(1000); // Ensure time difference
 
         // Act - Update
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             context.WithUserIdTyped(updateUserId);
             var existingProduct = await context.Products.FirstAsync(p => p.Id == product.Id);
@@ -98,7 +104,7 @@ public class GenericUserIdTests : IDisposable
         }
 
         // Assert
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             var savedProduct = await context.Products.FirstAsync(p => p.Id == product.Id);
             savedProduct.CreatedBy.Should().Be(createUserId);
@@ -112,10 +118,6 @@ public class GenericUserIdTests : IDisposable
     public async Task DbContextBase_With_Long_UserId_Should_Handle_Null_UserId()
     {
         // Arrange
-        var dbContextOptions = new DbContextOptionsBuilder<DbContextBase<long>>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-
         var product = new ProductWithLongUserId
         {
             Name = "Test Product",
@@ -124,14 +126,14 @@ public class GenericUserIdTests : IDisposable
         };
 
         // Act - Don't set user ID
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             context.Products.Add(product);
             await context.SaveChangesAsync();
         }
 
         // Assert
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             var savedProduct = await context.Products.FirstAsync(p => p.Id == product.Id);
             savedProduct.CreatedBy.Should().Be(0L); // Default value when no user ID is set
@@ -146,10 +148,6 @@ public class GenericUserIdTests : IDisposable
     public async Task DbContextBase_With_Int_UserId_Should_Set_Audit_Fields_On_Create()
     {
         // Arrange
-        var dbContextOptions = new DbContextOptionsBuilder<DbContextBase<int>>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-
         var userId = 42;
         var product = new ProductWithIntUserId
         {
@@ -159,7 +157,7 @@ public class GenericUserIdTests : IDisposable
         };
 
         // Act
-        await using (var context = new TestDbContextInt(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextInt(dbContextOptionsInt, mockObserver.Object, identityProviderInt))
         {
             context.WithUserIdTyped(userId);
             context.Products.Add(product);
@@ -167,7 +165,7 @@ public class GenericUserIdTests : IDisposable
         }
 
         // Assert
-        await using (var context = new TestDbContextInt(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextInt(dbContextOptionsInt, mockObserver.Object, identityProviderInt))
         {
             var savedProduct = await context.Products.FirstOrDefaultAsync(p => p.Id == product.Id);
             savedProduct.Should().NotBeNull();
@@ -183,10 +181,6 @@ public class GenericUserIdTests : IDisposable
     public async Task DbContextBase_With_Int_UserId_Should_Update_Audit_Fields_On_Modify()
     {
         // Arrange
-        var dbContextOptions = new DbContextOptionsBuilder<DbContextBase<int>>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-
         var createUserId = 100;
         var updateUserId = 200;
         var product = new ProductWithIntUserId
@@ -197,7 +191,7 @@ public class GenericUserIdTests : IDisposable
         };
 
         // Act - Create
-        await using (var context = new TestDbContextInt(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextInt(dbContextOptionsInt, mockObserver.Object, identityProviderInt))
         {
             context.WithUserIdTyped(createUserId);
             context.Products.Add(product);
@@ -207,7 +201,7 @@ public class GenericUserIdTests : IDisposable
         await Task.Delay(1000); // Ensure time difference
 
         // Act - Update
-        await using (var context = new TestDbContextInt(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextInt(dbContextOptionsInt, mockObserver.Object, identityProviderInt))
         {
             context.WithUserIdTyped(updateUserId);
             var existingProduct = await context.Products.FirstAsync(p => p.Id == product.Id);
@@ -216,7 +210,7 @@ public class GenericUserIdTests : IDisposable
         }
 
         // Assert
-        await using (var context = new TestDbContextInt(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextInt(dbContextOptionsInt, mockObserver.Object, identityProviderInt))
         {
             var savedProduct = await context.Products.FirstAsync(p => p.Id == product.Id);
             savedProduct.CreatedBy.Should().Be(createUserId);
@@ -230,10 +224,6 @@ public class GenericUserIdTests : IDisposable
     public async Task DbContextBase_With_Long_UserId_Should_Support_Multiple_Entities()
     {
         // Arrange
-        var dbContextOptions = new DbContextOptionsBuilder<DbContextBase<long>>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-
         var userId = 99999L;
         var product = new ProductWithLongUserId
         {
@@ -248,7 +238,7 @@ public class GenericUserIdTests : IDisposable
         };
 
         // Act
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             context.WithUserIdTyped(userId);
             context.Products.Add(product);
@@ -257,7 +247,7 @@ public class GenericUserIdTests : IDisposable
         }
 
         // Assert
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             var savedProduct = await context.Products.FirstAsync(p => p.Id == product.Id);
             var savedCustomer = await context.Customers.FirstAsync(c => c.Id == customer.Id);
@@ -273,10 +263,6 @@ public class GenericUserIdTests : IDisposable
     public async Task DbContextBase_With_Long_UserId_Should_Handle_Soft_Delete()
     {
         // Arrange
-        var dbContextOptions = new DbContextOptionsBuilder<DbContextBase<long>>()
-            .UseInMemoryDatabase(databaseName: $"TestDatabase_{Guid.NewGuid()}")
-            .Options;
-
         var userId = 55555L;
         var product = new ProductWithLongUserId
         {
@@ -286,7 +272,7 @@ public class GenericUserIdTests : IDisposable
         };
 
         // Act - Create
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             context.WithUserIdTyped(userId);
             context.Products.Add(product);
@@ -294,7 +280,7 @@ public class GenericUserIdTests : IDisposable
         }
 
         // Act - Delete (soft delete)
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             context.WithUserIdTyped(userId);
             var existingProduct = await context.Products.FirstAsync(p => p.Id == product.Id);
@@ -303,7 +289,7 @@ public class GenericUserIdTests : IDisposable
         }
 
         // Assert
-        await using (var context = new TestDbContextLong(dbContextOptions, mockObserver.Object))
+        await using (var context = new TestDbContextLong(dbContextOptionsLong, mockObserver.Object, identityProviderLong))
         {
             var savedProduct = await context.Products
                 .IgnoreQueryFilters()

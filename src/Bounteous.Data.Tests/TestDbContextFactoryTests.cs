@@ -9,13 +9,16 @@ public class TestDbContextFactoryTests : IDisposable
 {
     private readonly MockRepository mockRepository;
     private readonly TestDbContextFactory factory;
+    private readonly Mock<IConnectionBuilder> mockConnectionBuilder;
+    private readonly Mock<IDbContextObserver> mockObserver;
 
     public TestDbContextFactoryTests()
     {
         mockRepository = new MockRepository(MockBehavior.Strict);
-        var connectionBuilderMock = mockRepository.Create<IConnectionBuilder>();
-        var observerMock = mockRepository.Create<IDbContextObserver>();
-        factory = new TestDbContextFactory(connectionBuilderMock.Object, observerMock.Object);
+        mockConnectionBuilder = mockRepository.Create<IConnectionBuilder>();
+        mockObserver = mockRepository.Create<IDbContextObserver>();
+        var identityProvider = new TestIdentityProvider<Guid>();
+        factory = new TestDbContextFactory(mockConnectionBuilder.Object, mockObserver.Object, identityProvider);
     }
 
     [Fact]

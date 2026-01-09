@@ -1,11 +1,6 @@
-namespace Bounteous.Data;
+namespace Bounteous.Data.Tests.Context;
 
-public interface IIdentityProvider<TUserId> where TUserId : struct
-{
-    TUserId GetCurrentUserId();
-}
-
-public class IdentityProvider<TUserId> : IIdentityProvider<TUserId> where TUserId : struct
+public class TestIdentityProvider<TUserId> : IIdentityProvider<TUserId> where TUserId : struct
 {
     private TUserId currentUserId;
 

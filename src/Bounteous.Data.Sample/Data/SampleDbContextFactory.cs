@@ -7,12 +7,12 @@ public class SampleDbContextFactory : DbContextFactory<SampleDbContext, Guid>
     public SampleDbContextFactory(
         IConnectionBuilder connectionBuilder, 
         IDbContextObserver observer, 
-        IIdentityProvider<Guid>? identityProvider = null)
+        IIdentityProvider<Guid> identityProvider)
         : base(connectionBuilder, observer, identityProvider)
     {
     }
 
-    protected override SampleDbContext Create(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid>? identityProvider)
+    protected override SampleDbContext Create(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<Guid> identityProvider)
     {
         return new SampleDbContext(options, observer, identityProvider);
     }

@@ -13,12 +13,12 @@ public abstract class DbContextFactory<T, TUserId> : IDbContextFactory<T, TUserI
 {
     protected readonly IConnectionBuilder ConnectionBuilder;
     protected readonly IDbContextObserver Observer;
-    protected readonly IIdentityProvider<TUserId>? IdentityProvider;
+    protected readonly IIdentityProvider<TUserId> IdentityProvider;
 
     protected DbContextFactory(
         IConnectionBuilder connectionBuilder, 
         IDbContextObserver observer, 
-        IIdentityProvider<TUserId>? identityProvider = null)
+        IIdentityProvider<TUserId> identityProvider)
     {
         ConnectionBuilder = connectionBuilder;
         Observer = observer;
@@ -26,6 +26,6 @@ public abstract class DbContextFactory<T, TUserId> : IDbContextFactory<T, TUserI
     }
     
     public T Create() => Create(ApplyOptions(), Observer, IdentityProvider);
-    protected abstract T Create(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<TUserId>? identityProvider);
+    protected abstract T Create(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<TUserId> identityProvider);
     protected abstract DbContextOptions ApplyOptions(bool sensitiveDataLoggingEnabled = false);
 }
