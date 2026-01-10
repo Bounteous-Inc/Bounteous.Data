@@ -79,7 +79,7 @@ Install-Package Bounteous.Data
 Or add to your `.csproj` file:
 
 ```xml
-<PackageReference Include="Bounteous.Data" Version="0.0.21" />
+<PackageReference Include="Bounteous.Data" Version="{current.version}" /> <!-- See nuget.org for latest version -->
 ```
 
 ## Quick Start
@@ -191,10 +191,8 @@ public class CustomerService
 {
     private readonly IDbContextFactory<MyDbContext, Guid> _contextFactory;
 
-    public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory)
-    {
-        _contextFactory = contextFactory;
-    }
+    public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory) 
+        => _contextFactory = contextFactory;
 
     public async Task<Customer> CreateCustomerAsync(string name, string email)
     {
@@ -809,20 +807,17 @@ public class HttpContextIdentityProvider : IIdentityProvider<Guid>
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public HttpContextIdentityProvider(IHttpContextAccessor httpContextAccessor)
-    {
-        _httpContextAccessor = httpContextAccessor;
-    }
+    public HttpContextIdentityProvider(IHttpContextAccessor httpContextAccessor) 
+        => _httpContextAccessor = httpContextAccessor;
 
     public Guid? GetCurrentUserId()
     {
         var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")
             ?? _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
         
-        if (userIdClaim?.Value is string userId && Guid.TryParse(userId, out var id))
-            return id;
-        
-        return null; // No authenticated user
+        return userIdClaim?.Value is string userId && Guid.TryParse(userId, out var id) 
+            ? id 
+            : null; // No authenticated user
     }
 }
 ```
@@ -834,15 +829,10 @@ public class CustomIdentityProvider : IIdentityProvider<long>
 {
     private readonly ICurrentUserService _currentUserService;
 
-    public CustomIdentityProvider(ICurrentUserService currentUserService)
-    {
-        _currentUserService = currentUserService;
-    }
+    public CustomIdentityProvider(ICurrentUserService currentUserService) 
+        => _currentUserService = currentUserService;
 
-    public long? GetCurrentUserId()
-    {
-        return _currentUserService.GetUserId();
-    }
+    public long? GetCurrentUserId() => _currentUserService.GetUserId();
 }
 ```
 
@@ -869,10 +859,8 @@ public class CustomerService
 {
     private readonly IDbContextFactory<MyDbContext, Guid> _contextFactory;
 
-    public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory)
-    {
-        _contextFactory = contextFactory;
-    }
+    public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory) 
+        => _contextFactory = contextFactory;
 
     public async Task<Customer> CreateCustomerAsync(string name, string email)
     {
@@ -1198,10 +1186,8 @@ public class LoggingDbContextObserver : IDbContextObserver
 {
     private readonly ILogger<LoggingDbContextObserver> _logger;
 
-    public LoggingDbContextObserver(ILogger<LoggingDbContextObserver> logger)
-    {
-        _logger = logger;
-    }
+    public LoggingDbContextObserver(ILogger<LoggingDbContextObserver> logger) 
+        => _logger = logger;
 
     public void OnEntityTracked(object sender, EntityTrackedEventArgs e)
     {
@@ -1313,13 +1299,13 @@ Create domain-specific query extensions:
 ```csharp
 public static class CustomerQueryExtensions
 {
-    public static IQueryable<Customer> Active(this IQueryable<Customer> query)
+    public static IQueryable<Customer> Active(this IQueryable<Customer> query) 
         => query.Where(c => !c.IsDeleted);
 
-    public static IQueryable<Customer> WithEmail(this IQueryable<Customer> query, string email)
+    public static IQueryable<Customer> WithEmail(this IQueryable<Customer> query, string email) 
         => query.Where(c => c.Email == email);
     
-    public static IQueryable<Customer> CreatedAfter(this IQueryable<Customer> query, DateTime date)
+    public static IQueryable<Customer> CreatedAfter(this IQueryable<Customer> query, DateTime date) 
         => query.Where(c => c.CreatedOn >= date);
 }
 
