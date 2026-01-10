@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Entities;
 
 namespace Bounteous.Data.Tests.Domain;
 

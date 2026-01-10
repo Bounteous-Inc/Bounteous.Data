@@ -1,4 +1,4 @@
-namespace Bounteous.Data.Domain;
+namespace Bounteous.Data.Domain.Interfaces;
 
 public interface IEntity<TId>
 {

@@ -1,6 +1,6 @@
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Entities;
 
-namespace Bounteous.Data.Sample.Domain;
+namespace Bounteous.Data.Sample.Domain.Entities;
 
 public class OrderItem : AuditBase
 {

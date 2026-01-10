@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Entities;
+using Bounteous.Data.Domain.Interfaces;
 
 namespace Bounteous.Data.Tests.Domain;
 

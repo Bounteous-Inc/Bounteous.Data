@@ -1,3 +1,4 @@
+using Bounteous.Core;
 using Bounteous.Core.DI;
 using Bounteous.Data;
 using Bounteous.Data.Sample.Data;
@@ -31,9 +32,7 @@ public static class AppStartup
             return new SampleDbContextFactory(connectionBuilder, observer, identityProvider);
         });
 
-        services.AddScoped<ICustomerService, CustomerService>();
-        services.AddScoped<IProductService, ProductService>();
-        services.AddScoped<IOrderService, OrderService>();
+        services.AutoRegister(typeof(Program).Assembly);
 
         return services;
     }

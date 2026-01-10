@@ -1,4 +1,4 @@
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data.Extensions;

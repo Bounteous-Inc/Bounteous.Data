@@ -1,4 +1,6 @@
-namespace Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Interfaces;
+
+namespace Bounteous.Data.Domain.Entities;
 
 public abstract class AuditBase : AuditBase<Guid, Guid>
 {

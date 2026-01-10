@@ -3,7 +3,8 @@ using Bounteous.Data.Exceptions;
 using Bounteous.Data.Extensions;
 using Bounteous.Data.Sample;
 using Bounteous.Data.Sample.Data;
-using Bounteous.Data.Sample.Domain;
+using Bounteous.Data.Sample.Domain.Entities;
+using Bounteous.Data.Sample.Domain.Enums;
 using Bounteous.Data.Sample.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -417,6 +418,101 @@ try
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // FEATURE 14: ReadOnlyDbSet - Immediate Fail-Fast Validation
+    // ═══════════════════════════════════════════════════════════════
+    Log.Information("\n╔═══════════════════════════════════════════════════════════════╗");
+    Log.Information("║ FEATURE 14: ReadOnlyDbSet (Immediate Write Operation Block)  ║");
+    Log.Information("╚═══════════════════════════════════════════════════════════════╝");
+    Log.Debug("[READONLY-DBSET] ReadOnlyDbSet throws exceptions IMMEDIATELY on write operations");
+    Log.Debug("[READONLY-DBSET] Unlike SaveChanges validation, errors occur at the exact line");
+
+    // Demonstrate query operations work normally
+    Log.Debug("[READONLY-DBSET] Testing query operations (should work)");
+    using (var context = (SampleDbContext)contextFactory.Create().WithUserIdTyped(userId))
+    {
+        var legacySystems = await ((DbSet<LegacySystem>)context.LegacySystems).ToListAsync();
+        Log.Information("[READONLY-DBSET] ✓ Query operations work: Found {Count} legacy system(s)", legacySystems.Count);
+        
+        var filtered = await ((DbSet<LegacySystem>)context.LegacySystems)
+            .Where(ls => ls.SystemName.Contains("Legacy"))
+            .ToListAsync();
+        Log.Information("[READONLY-DBSET] ✓ LINQ queries work: Filtered to {Count} system(s)", filtered.Count);
+    }
+
+    // Demonstrate Add throws immediately
+    Log.Debug("[READONLY-DBSET] Testing Add operation (should throw immediately)");
+    try
+    {
+        using var context = (SampleDbContext)contextFactory.Create().WithUserIdTyped(userId);
+        var newSystem = new LegacySystem
+        {
+            Id = 999,
+            SystemName = "New System",
+            Version = "1.0",
+            InstallDate = DateTime.UtcNow
+        };
+        
+        context.LegacySystems.Add(newSystem); // Should throw HERE, not at SaveChanges
+        Log.Warning("[READONLY-DBSET] ✗ UNEXPECTED: Add did not throw exception");
+    }
+    catch (ReadOnlyEntityException ex)
+    {
+        Log.Information("[READONLY-DBSET] ✓ Add threw ReadOnlyEntityException immediately");
+        Log.Information("[READONLY-DBSET]   - Message: {Message}", ex.Message);
+        Log.Information("[READONLY-DBSET]   - Operation: create");
+        Log.Information("[READONLY-DBSET]   - Entity: LegacySystem");
+    }
+
+    // Demonstrate Remove throws immediately
+    Log.Debug("[READONLY-DBSET] Testing Remove operation (should throw immediately)");
+    try
+    {
+        using var context = (SampleDbContext)contextFactory.Create().WithUserIdTyped(userId);
+        var system = new LegacySystem { Id = 1, SystemName = "Test", Version = "1.0", InstallDate = DateTime.UtcNow };
+        context.LegacySystems.Remove(system); // Should throw HERE
+        Log.Warning("[READONLY-DBSET] ✗ UNEXPECTED: Remove did not throw exception");
+    }
+    catch (ReadOnlyEntityException ex)
+    {
+        Log.Information("[READONLY-DBSET] ✓ Remove threw ReadOnlyEntityException immediately");
+        Log.Information("[READONLY-DBSET]   - Operation: delete");
+    }
+
+    // Demonstrate Update throws immediately
+    Log.Debug("[READONLY-DBSET] Testing Update operation (should throw immediately)");
+    try
+    {
+        using var context = (SampleDbContext)contextFactory.Create().WithUserIdTyped(userId);
+        var system = new LegacySystem { Id = 1, SystemName = "Test", Version = "2.0", InstallDate = DateTime.UtcNow };
+        context.LegacySystems.Update(system); // Should throw HERE
+        Log.Warning("[READONLY-DBSET] ✗ UNEXPECTED: Update did not throw exception");
+    }
+    catch (ReadOnlyEntityException ex)
+    {
+        Log.Information("[READONLY-DBSET] ✓ Update threw ReadOnlyEntityException immediately");
+        Log.Information("[READONLY-DBSET]   - Operation: update");
+    }
+
+    // Demonstrate Attach throws immediately
+    Log.Debug("[READONLY-DBSET] Testing Attach operation (should throw immediately)");
+    try
+    {
+        using var context = (SampleDbContext)contextFactory.Create().WithUserIdTyped(userId);
+        var system = new LegacySystem { Id = 1, SystemName = "Test", Version = "1.0", InstallDate = DateTime.UtcNow };
+        context.LegacySystems.Attach(system); // Should throw HERE
+        Log.Warning("[READONLY-DBSET] ✗ UNEXPECTED: Attach did not throw exception");
+    }
+    catch (ReadOnlyEntityException ex)
+    {
+        Log.Information("[READONLY-DBSET] ✓ Attach threw ReadOnlyEntityException immediately");
+        Log.Information("[READONLY-DBSET]   - Operation: attach");
+    }
+
+    Log.Information("[READONLY-DBSET] ✓ ReadOnlyDbSet provides fail-fast protection");
+    Log.Information("[READONLY-DBSET] ✓ Errors occur at exact line, not deferred to SaveChanges");
+    Log.Information("[READONLY-DBSET] ✓ Works alongside SaveChanges validation as defense-in-depth");
+
+    // ═══════════════════════════════════════════════════════════════
     // Summary
     // ═══════════════════════════════════════════════════════════════
     Log.Information("\n╔═══════════════════════════════════════════════════════════════╗");
@@ -435,6 +531,7 @@ try
     Log.Information("✓ FEATURE 11: Complex Queries with Navigation Properties");
     Log.Information("✓ FEATURE 12: Version Tracking (Optimistic Concurrency)");
     Log.Information("✓ FEATURE 13: IIdentityProvider (Automatic User ID Resolution)");
+    Log.Information("✓ FEATURE 14: ReadOnlyDbSet (Immediate Fail-Fast Validation)");
     Log.Information("\n╔═══════════════════════════════════════════════════════════════╗");
     Log.Information("║          ALL BOUNTEOUS.DATA FEATURES VALIDATED ✓              ║");
     Log.Information("╚═══════════════════════════════════════════════════════════════╝");

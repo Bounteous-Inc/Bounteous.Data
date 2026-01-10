@@ -1,6 +1,8 @@
 using Bounteous.Data;
 using Bounteous.Data.Converters;
-using Bounteous.Data.Sample.Domain;
+using Bounteous.Data.Domain.ReadOnly;
+using Bounteous.Data.Sample.Domain.Entities;
+using Bounteous.Data.Sample.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data.Sample.Data;
@@ -20,7 +22,10 @@ public class SampleDbContext : DbContextBase<Guid>
     public DbSet<Order> Orders { get; set; } = null!;
     public DbSet<OrderItem> OrderItems { get; set; } = null!;
     public DbSet<Category> Categories { get; set; } = null!;
-    public DbSet<LegacySystem> LegacySystems { get; set; } = null!;
+    
+    // ReadOnlyDbSet example - returns wrapped DbSet that throws immediately on write operations
+    public ReadOnlyDbSet<LegacySystem, int> LegacySystems 
+        => Set<LegacySystem>().AsReadOnly<LegacySystem, int>();
 
     protected override void RegisterModels(ModelBuilder modelBuilder)
     {
