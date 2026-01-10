@@ -87,7 +87,7 @@ public class MyDbContext : DbContextBase<Guid>
     public MyDbContext(
         DbContextOptions options, 
         IDbContextObserver? observer, 
-        IIdentityProvider<Guid>? identityProvider)
+        IIdentityProvider<Guid> identityProvider)
         : base(options, observer, identityProvider)
     {
     }
