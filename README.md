@@ -114,14 +114,14 @@ public class MyDbContext : DbContextBase<Guid>
 ```csharp
 public class CustomerService
 {
-    private readonly IDbContextFactory<MyDbContext, Guid> _contextFactory;
+    private readonly IDbContextFactory<MyDbContext, Guid> contextFactory;
 
     public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory) 
-        => _contextFactory = contextFactory;
+        => this.contextFactory = contextFactory;
 
     public async Task<Customer> CreateCustomerAsync(string name, string email)
     {
-        using var context = _contextFactory.Create();
+        using var context = contextFactory.Create();
         
         // No need to call WithUserId() - IIdentityProvider handles it automatically!
         var customer = new Customer { Name = name, Email = email };

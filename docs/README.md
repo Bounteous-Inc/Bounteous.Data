@@ -189,14 +189,14 @@ public class MyDbContext : DbContextBase<Guid>
 ```csharp
 public class CustomerService
 {
-    private readonly IDbContextFactory<MyDbContext, Guid> _contextFactory;
+    private readonly IDbContextFactory<MyDbContext, Guid> contextFactory;
 
     public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory) 
-        => _contextFactory = contextFactory;
+        => this.contextFactory = contextFactory;
 
     public async Task<Customer> CreateCustomerAsync(string name, string email)
     {
-        using var context = _contextFactory.Create();
+        using var context = contextFactory.Create();
         
         // No need to call WithUserId() - IIdentityProvider handles it automatically!
         var customer = new Customer { Name = name, Email = email };
@@ -805,15 +805,15 @@ using System.Security.Claims;
 
 public class HttpContextIdentityProvider : IIdentityProvider<Guid>
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IHttpContextAccessor httpContextAccessor;
 
     public HttpContextIdentityProvider(IHttpContextAccessor httpContextAccessor) 
-        => _httpContextAccessor = httpContextAccessor;
+        => this.httpContextAccessor = httpContextAccessor;
 
     public Guid? GetCurrentUserId()
     {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")
-            ?? _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        var userIdClaim = httpContextAccessor.HttpContext?.User?.FindFirst("sub")
+            ?? httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
         
         return userIdClaim?.Value is string userId && Guid.TryParse(userId, out var id) 
             ? id 
@@ -827,12 +827,12 @@ public class HttpContextIdentityProvider : IIdentityProvider<Guid>
 ```csharp
 public class CustomIdentityProvider : IIdentityProvider<long>
 {
-    private readonly ICurrentUserService _currentUserService;
+    private readonly ICurrentUserService currentUserService;
 
     public CustomIdentityProvider(ICurrentUserService currentUserService) 
-        => _currentUserService = currentUserService;
+        => this.currentUserService = currentUserService;
 
-    public long? GetCurrentUserId() => _currentUserService.GetUserId();
+    public long? GetCurrentUserId() => currentUserService.GetUserId();
 }
 ```
 
@@ -857,14 +857,14 @@ builder.Services.AddScoped<IDbContextFactory<MyDbContext, Guid>, MyDbContextFact
 ```csharp
 public class CustomerService
 {
-    private readonly IDbContextFactory<MyDbContext, Guid> _contextFactory;
+    private readonly IDbContextFactory<MyDbContext, Guid> contextFactory;
 
     public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory) 
-        => _contextFactory = contextFactory;
+        => this.contextFactory = contextFactory;
 
     public async Task<Customer> CreateCustomerAsync(string name, string email)
     {
-        using var context = _contextFactory.Create();
+        using var context = contextFactory.Create();
         
         // No WithUserId() needed - IIdentityProvider handles it automatically!
         var customer = new Customer { Name = name, Email = email };
@@ -1184,14 +1184,14 @@ public interface IDbContextObserver : IDisposable
 ```csharp
 public class LoggingDbContextObserver : IDbContextObserver
 {
-    private readonly ILogger<LoggingDbContextObserver> _logger;
+    private readonly ILogger<LoggingDbContextObserver> logger;
 
     public LoggingDbContextObserver(ILogger<LoggingDbContextObserver> logger) 
-        => _logger = logger;
+        => this.logger = logger;
 
     public void OnEntityTracked(object sender, EntityTrackedEventArgs e)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Entity tracked: {EntityType} with ID {EntityId}", 
             e.Entry.Entity.GetType().Name, 
             e.Entry.Property("Id").CurrentValue);
@@ -1199,7 +1199,7 @@ public class LoggingDbContextObserver : IDbContextObserver
 
     public void OnStateChanged(object? sender, EntityStateChangedEventArgs e)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Entity state changed from {OldState} to {NewState}", 
             e.OldState, 
             e.NewState);
@@ -1207,12 +1207,12 @@ public class LoggingDbContextObserver : IDbContextObserver
 
     public void OnSaved()
     {
-        _logger.LogInformation("Changes saved to database");
+        logger.LogInformation("Changes saved to database");
     }
 
     public void Dispose()
     {
-        _logger.LogDebug("DbContextObserver disposed");
+        logger.LogDebug("DbContextObserver disposed");
     }
 }
 ```
