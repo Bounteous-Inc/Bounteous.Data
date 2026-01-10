@@ -8,7 +8,7 @@ using Moq;
 
 namespace Bounteous.Data.Tests;
 
-public class GenericUserIdTests : IDisposable
+public class DbContextBaseTests : IDisposable
 {
     private readonly MockRepository mockRepository;
     private readonly DbContextOptions<TestDbContextInt> dbContextOptionsInt;
@@ -17,7 +17,7 @@ public class GenericUserIdTests : IDisposable
     private readonly TestIdentityProvider<int> identityProviderInt;
     private readonly TestIdentityProvider<long> identityProviderLong;
 
-    public GenericUserIdTests()
+    public DbContextBaseTests()
     {
         mockRepository = new MockRepository(MockBehavior.Strict);
         
