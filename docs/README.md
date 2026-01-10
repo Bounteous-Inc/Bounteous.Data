@@ -79,7 +79,7 @@ Install-Package Bounteous.Data
 Or add to your `.csproj` file:
 
 ```xml
-<PackageReference Include="Bounteous.Data" Version="0.0.21" />
+<PackageReference Include="Bounteous.Data" Version="{current.version}" /> <!-- See nuget.org for latest version -->
 ```
 
 ## Quick Start
@@ -189,16 +189,14 @@ public class MyDbContext : DbContextBase<Guid>
 ```csharp
 public class CustomerService
 {
-    private readonly IDbContextFactory<MyDbContext, Guid> _contextFactory;
+    private readonly IDbContextFactory<MyDbContext, Guid> contextFactory;
 
-    public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory)
-    {
-        _contextFactory = contextFactory;
-    }
+    public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory) 
+        => this.contextFactory = contextFactory;
 
     public async Task<Customer> CreateCustomerAsync(string name, string email)
     {
-        using var context = _contextFactory.Create();
+        using var context = contextFactory.Create();
         
         // No need to call WithUserId() - IIdentityProvider handles it automatically!
         var customer = new Customer { Name = name, Email = email };
@@ -807,22 +805,19 @@ using System.Security.Claims;
 
 public class HttpContextIdentityProvider : IIdentityProvider<Guid>
 {
-    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IHttpContextAccessor httpContextAccessor;
 
-    public HttpContextIdentityProvider(IHttpContextAccessor httpContextAccessor)
-    {
-        _httpContextAccessor = httpContextAccessor;
-    }
+    public HttpContextIdentityProvider(IHttpContextAccessor httpContextAccessor) 
+        => this.httpContextAccessor = httpContextAccessor;
 
     public Guid? GetCurrentUserId()
     {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst("sub")
-            ?? _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+        var userIdClaim = httpContextAccessor.HttpContext?.User?.FindFirst("sub")
+            ?? httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
         
-        if (userIdClaim?.Value is string userId && Guid.TryParse(userId, out var id))
-            return id;
-        
-        return null; // No authenticated user
+        return userIdClaim?.Value is string userId && Guid.TryParse(userId, out var id) 
+            ? id 
+            : null; // No authenticated user
     }
 }
 ```
@@ -832,17 +827,12 @@ public class HttpContextIdentityProvider : IIdentityProvider<Guid>
 ```csharp
 public class CustomIdentityProvider : IIdentityProvider<long>
 {
-    private readonly ICurrentUserService _currentUserService;
+    private readonly ICurrentUserService currentUserService;
 
-    public CustomIdentityProvider(ICurrentUserService currentUserService)
-    {
-        _currentUserService = currentUserService;
-    }
+    public CustomIdentityProvider(ICurrentUserService currentUserService) 
+        => this.currentUserService = currentUserService;
 
-    public long? GetCurrentUserId()
-    {
-        return _currentUserService.GetUserId();
-    }
+    public long? GetCurrentUserId() => currentUserService.GetUserId();
 }
 ```
 
@@ -867,16 +857,14 @@ builder.Services.AddScoped<IDbContextFactory<MyDbContext, Guid>, MyDbContextFact
 ```csharp
 public class CustomerService
 {
-    private readonly IDbContextFactory<MyDbContext, Guid> _contextFactory;
+    private readonly IDbContextFactory<MyDbContext, Guid> contextFactory;
 
-    public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory)
-    {
-        _contextFactory = contextFactory;
-    }
+    public CustomerService(IDbContextFactory<MyDbContext, Guid> contextFactory) 
+        => this.contextFactory = contextFactory;
 
     public async Task<Customer> CreateCustomerAsync(string name, string email)
     {
-        using var context = _contextFactory.Create();
+        using var context = contextFactory.Create();
         
         // No WithUserId() needed - IIdentityProvider handles it automatically!
         var customer = new Customer { Name = name, Email = email };
@@ -1196,16 +1184,14 @@ public interface IDbContextObserver : IDisposable
 ```csharp
 public class LoggingDbContextObserver : IDbContextObserver
 {
-    private readonly ILogger<LoggingDbContextObserver> _logger;
+    private readonly ILogger<LoggingDbContextObserver> logger;
 
-    public LoggingDbContextObserver(ILogger<LoggingDbContextObserver> logger)
-    {
-        _logger = logger;
-    }
+    public LoggingDbContextObserver(ILogger<LoggingDbContextObserver> logger) 
+        => this.logger = logger;
 
     public void OnEntityTracked(object sender, EntityTrackedEventArgs e)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Entity tracked: {EntityType} with ID {EntityId}", 
             e.Entry.Entity.GetType().Name, 
             e.Entry.Property("Id").CurrentValue);
@@ -1213,7 +1199,7 @@ public class LoggingDbContextObserver : IDbContextObserver
 
     public void OnStateChanged(object? sender, EntityStateChangedEventArgs e)
     {
-        _logger.LogInformation(
+        logger.LogInformation(
             "Entity state changed from {OldState} to {NewState}", 
             e.OldState, 
             e.NewState);
@@ -1221,12 +1207,12 @@ public class LoggingDbContextObserver : IDbContextObserver
 
     public void OnSaved()
     {
-        _logger.LogInformation("Changes saved to database");
+        logger.LogInformation("Changes saved to database");
     }
 
     public void Dispose()
     {
-        _logger.LogDebug("DbContextObserver disposed");
+        logger.LogDebug("DbContextObserver disposed");
     }
 }
 ```
@@ -1313,13 +1299,13 @@ Create domain-specific query extensions:
 ```csharp
 public static class CustomerQueryExtensions
 {
-    public static IQueryable<Customer> Active(this IQueryable<Customer> query)
+    public static IQueryable<Customer> Active(this IQueryable<Customer> query) 
         => query.Where(c => !c.IsDeleted);
 
-    public static IQueryable<Customer> WithEmail(this IQueryable<Customer> query, string email)
+    public static IQueryable<Customer> WithEmail(this IQueryable<Customer> query, string email) 
         => query.Where(c => c.Email == email);
     
-    public static IQueryable<Customer> CreatedAfter(this IQueryable<Customer> query, DateTime date)
+    public static IQueryable<Customer> CreatedAfter(this IQueryable<Customer> query, DateTime date) 
         => query.Where(c => c.CreatedOn >= date);
 }
 
