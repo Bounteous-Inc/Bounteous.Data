@@ -1,5 +1,5 @@
 using System.Linq.Expressions;
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Interfaces;
 using Bounteous.Data.Exceptions;
 using Microsoft.EntityFrameworkCore;
 

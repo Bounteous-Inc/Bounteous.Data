@@ -36,4 +36,55 @@ jobs:
     secrets:
       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
       NUGET_SOURCE_URI: ${{ secrets.NUGET_SOURCE_URI }}
+  
+  update-version:
+    needs: publish
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Get published version from NuGet
+        id: get-version
+        run: |
+          # Query NuGet API for the latest version
+          PACKAGE_NAME="Bounteous.Data"
+          NUGET_API="https://api.nuget.org/v3-flatcontainer/${PACKAGE_NAME,,}/index.json"
+          
+          # Get the latest version from NuGet
+          LATEST_VERSION=$(curl -s "$NUGET_API" | jq -r '.versions[-1]')
+          echo "Latest version on NuGet: $LATEST_VERSION"
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Update csproj version
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          CSPROJ_PATH="./src/Bounteous.Data/Bounteous.Data.csproj"
+          
+          # Update the version in the csproj file
+          sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|g" "$CSPROJ_PATH"
+          
+          echo "Updated $CSPROJ_PATH to version $VERSION"
+      
+      - name: Commit and push version update
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add ./src/Bounteous.Data/Bounteous.Data.csproj
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: update version to ${{ steps.get-version.outputs.version }} [skip ci]"
+            git push origin main
+            echo "Version updated and committed to main"
+          fi
       

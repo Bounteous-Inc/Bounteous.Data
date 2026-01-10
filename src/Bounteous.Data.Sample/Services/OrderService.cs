@@ -1,6 +1,7 @@
 using Bounteous.Data.Extensions;
 using Bounteous.Data.Sample.Data;
-using Bounteous.Data.Sample.Domain;
+using Bounteous.Data.Sample.Domain.Entities;
+using Bounteous.Data.Sample.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data.Sample.Services;

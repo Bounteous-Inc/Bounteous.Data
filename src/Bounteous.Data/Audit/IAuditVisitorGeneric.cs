@@ -1,5 +1,5 @@
 using Bounteous.Core.Time;
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Interfaces;
 using Bounteous.Data.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;

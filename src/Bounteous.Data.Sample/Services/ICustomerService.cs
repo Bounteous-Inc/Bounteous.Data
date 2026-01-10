@@ -1,4 +1,4 @@
-using Bounteous.Data.Sample.Domain;
+using Bounteous.Data.Sample.Domain.Entities;
 
 namespace Bounteous.Data.Sample.Services;
 

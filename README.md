@@ -148,7 +148,7 @@ This combination allows developers to focus on business logic while ensuring dat
 Add the Bounteous.Data NuGet package to your project:
 
 ```xml
-<PackageReference Include="Bounteous.Data" Version="0.0.1" />
+<PackageReference Include="Bounteous.Data" Version="0.0.21" />
 ```
 
 ## Quick Start

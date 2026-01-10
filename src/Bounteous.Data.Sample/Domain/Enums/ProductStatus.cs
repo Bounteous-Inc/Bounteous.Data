@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace Bounteous.Data.Sample.Domain;
+namespace Bounteous.Data.Sample.Domain.Enums;
 
 public enum ProductStatus
 {

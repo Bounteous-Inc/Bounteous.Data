@@ -1,7 +1,7 @@
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Entities;
 using System.ComponentModel.DataAnnotations;
 
-namespace Bounteous.Data.Sample.Domain;
+namespace Bounteous.Data.Sample.Domain.Entities;
 
 public class LegacySystem : ReadOnlyEntityBase<int>
 {

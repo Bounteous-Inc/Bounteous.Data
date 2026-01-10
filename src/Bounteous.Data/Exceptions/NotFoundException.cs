@@ -1,4 +1,4 @@
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Interfaces;
 
 namespace Bounteous.Data.Exceptions;
 

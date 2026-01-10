@@ -1,7 +1,8 @@
-using Bounteous.Data.Domain;
+using Bounteous.Data.Domain.Entities;
+using Bounteous.Data.Sample.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 
-namespace Bounteous.Data.Sample.Domain;
+namespace Bounteous.Data.Sample.Domain.Entities;
 
 public class Order : AuditBase
 {
@@ -19,13 +20,4 @@ public class Order : AuditBase
     public Customer Customer { get; set; } = null!;
     
     public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
-}
-
-public enum OrderStatus
-{
-    Pending = 0,
-    Processing = 1,
-    Shipped = 2,
-    Delivered = 3,
-    Cancelled = 4
 }
