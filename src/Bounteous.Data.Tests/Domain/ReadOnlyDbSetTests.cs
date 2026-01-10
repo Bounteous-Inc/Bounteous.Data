@@ -8,8 +8,52 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data.Tests.Domain;
 
+/// <summary>
+/// Tests for ReadOnlyDbSet fail-fast validation.
+/// Verifies that write operations throw immediately rather than deferring to SaveChanges.
+/// </summary>
 public class ReadOnlyDbSetTests : DbContextTestBase
 {
+    /// <summary>
+    /// Creates a test product with unique ID for testing.
+    /// </summary>
+    private static ReadOnlyLegacyProduct CreateTestProduct(long id, string name = "Test Product") =>
+        new()
+        {
+            Id = id,
+            Name = name,
+            Price = 50.00m,
+            Category = "Test"
+        };
+
+    /// <summary>
+    /// Creates multiple test products for range operations.
+    /// </summary>
+    private static ReadOnlyLegacyProduct[] CreateTestProducts(long startId, int count) =>
+        Enumerable.Range(0, count)
+            .Select(i => CreateTestProduct(startId + i, $"Product {i + 1}"))
+            .ToArray();
+
+    /// <summary>
+    /// Creates a test customer with unique ID for testing.
+    /// </summary>
+    private static ReadOnlyLegacyCustomer CreateTestCustomer(int id) =>
+        new()
+        {
+            Id = id,
+            Name = "John Doe",
+            Email = "john@example.com",
+            CreatedDate = DateTime.UtcNow
+        };
+
+    /// <summary>
+    /// Helper to verify ReadOnlyEntityException is thrown with expected message content.
+    /// </summary>
+    private static void AssertReadOnlyException(ReadOnlyEntityException exception, string entityName, string operation)
+    {
+        exception.Message.Should().Contain(entityName);
+        exception.Message.Should().Contain(operation);
+    }
     [Fact]
     public async Task ReadOnlyDbSet_Should_Allow_Query()
     {
@@ -49,20 +93,11 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var product = new ReadOnlyLegacyProduct
-            {
-                Id = 1000L,
-                Name = "Test Product",
-                Price = 50.00m,
-                Category = "Test"
-            };
+            var product = CreateTestProduct(1000L);
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.Add(product));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.Add(product));
             
-            exception.Message.Should().Contain("ReadOnlyLegacyProduct");
-            exception.Message.Should().Contain("create");
+            AssertReadOnlyException(exception, "ReadOnlyLegacyProduct", "create");
         }
     }
 
@@ -72,20 +107,12 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         await using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var product = new ReadOnlyLegacyProduct
-            {
-                Id = 1001L,
-                Name = "Test Product Async",
-                Price = 75.00m,
-                Category = "Test"
-            };
+            var product = CreateTestProduct(1001L, "Test Product Async");
 
             var exception = await Assert.ThrowsAsync<ReadOnlyEntityException>(async () => 
                 await readOnlySet.AddAsync(product));
             
-            exception.Message.Should().Contain("ReadOnlyLegacyProduct");
-            exception.Message.Should().Contain("create");
+            AssertReadOnlyException(exception, "ReadOnlyLegacyProduct", "create");
         }
     }
 
@@ -95,15 +122,9 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var products = new[]
-            {
-                new ReadOnlyLegacyProduct { Id = 1002L, Name = "Product 1", Price = 10m, Category = "A" },
-                new ReadOnlyLegacyProduct { Id = 1003L, Name = "Product 2", Price = 20m, Category = "B" }
-            };
+            var products = CreateTestProducts(1002L, 2);
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.AddRange(products));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.AddRange(products));
             
             exception.Message.Should().Contain("create");
         }
@@ -115,20 +136,11 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var product = new ReadOnlyLegacyProduct
-            {
-                Id = 2000L,
-                Name = "To Delete",
-                Price = 100m,
-                Category = "Test"
-            };
+            var product = CreateTestProduct(2000L, "To Delete");
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.Remove(product));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.Remove(product));
             
-            exception.Message.Should().Contain("ReadOnlyLegacyProduct");
-            exception.Message.Should().Contain("delete");
+            AssertReadOnlyException(exception, "ReadOnlyLegacyProduct", "delete");
         }
     }
 
@@ -138,15 +150,9 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var products = new[]
-            {
-                new ReadOnlyLegacyProduct { Id = 2001L, Name = "Product 1", Price = 10m, Category = "A" },
-                new ReadOnlyLegacyProduct { Id = 2002L, Name = "Product 2", Price = 20m, Category = "B" }
-            };
+            var products = CreateTestProducts(2001L, 2);
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.RemoveRange(products));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.RemoveRange(products));
             
             exception.Message.Should().Contain("delete");
         }
@@ -158,20 +164,11 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var product = new ReadOnlyLegacyProduct
-            {
-                Id = 3000L,
-                Name = "To Update",
-                Price = 50m,
-                Category = "Test"
-            };
+            var product = CreateTestProduct(3000L, "To Update");
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.Update(product));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.Update(product));
             
-            exception.Message.Should().Contain("ReadOnlyLegacyProduct");
-            exception.Message.Should().Contain("update");
+            AssertReadOnlyException(exception, "ReadOnlyLegacyProduct", "update");
         }
     }
 
@@ -181,15 +178,9 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var products = new[]
-            {
-                new ReadOnlyLegacyProduct { Id = 3001L, Name = "Product 1", Price = 10m, Category = "A" },
-                new ReadOnlyLegacyProduct { Id = 3002L, Name = "Product 2", Price = 20m, Category = "B" }
-            };
+            var products = CreateTestProducts(3001L, 2);
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.UpdateRange(products));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.UpdateRange(products));
             
             exception.Message.Should().Contain("update");
         }
@@ -201,20 +192,11 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var product = new ReadOnlyLegacyProduct
-            {
-                Id = 4000L,
-                Name = "To Attach",
-                Price = 25m,
-                Category = "Test"
-            };
+            var product = CreateTestProduct(4000L, "To Attach");
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.Attach(product));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.Attach(product));
             
-            exception.Message.Should().Contain("ReadOnlyLegacyProduct");
-            exception.Message.Should().Contain("attach");
+            AssertReadOnlyException(exception, "ReadOnlyLegacyProduct", "attach");
         }
     }
 
@@ -224,15 +206,9 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
-            
-            var products = new[]
-            {
-                new ReadOnlyLegacyProduct { Id = 4001L, Name = "Product 1", Price = 10m, Category = "A" },
-                new ReadOnlyLegacyProduct { Id = 4002L, Name = "Product 2", Price = 20m, Category = "B" }
-            };
+            var products = CreateTestProducts(4001L, 2);
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.AttachRange(products));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.AttachRange(products));
             
             exception.Message.Should().Contain("attach");
         }
@@ -244,20 +220,11 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         await using (var context = CreateContext())
         {
             var readOnlySet = context.Set<ReadOnlyLegacyCustomer>().AsReadOnly<ReadOnlyLegacyCustomer, int>();
-            
-            var customer = new ReadOnlyLegacyCustomer
-            {
-                Id = 100,
-                Name = "John Doe",
-                Email = "john@example.com",
-                CreatedDate = DateTime.UtcNow
-            };
+            var customer = CreateTestCustomer(100);
 
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlySet.Add(customer));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlySet.Add(customer));
             
-            exception.Message.Should().Contain("ReadOnlyLegacyCustomer");
-            exception.Message.Should().Contain("create");
+            AssertReadOnlyException(exception, "ReadOnlyLegacyCustomer", "create");
         }
     }
 
@@ -347,27 +314,14 @@ public class ReadOnlyDbSetTests : DbContextTestBase
             var regularDbSet = context.Set<LegacyProduct>();
             var readOnlyDbSet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
             
-            var writableProduct = new LegacyProduct
-            {
-                Id = 5000L,
-                Name = "Writable",
-                Price = 10m
-            };
-            
-            var readonlyProduct = new ReadOnlyLegacyProduct
-            {
-                Id = 5001L,
-                Name = "Readonly",
-                Price = 20m,
-                Category = "Test"
-            };
+            var writableProduct = new LegacyProduct { Id = 5000L, Name = "Writable", Price = 10m };
+            var readonlyProduct = CreateTestProduct(5001L, "Readonly");
             
             // Regular DbSet allows Add (exception happens at SaveChanges)
             regularDbSet.Add(writableProduct);
             
             // ReadOnlyDbSet throws immediately
-            var exception = Assert.Throws<ReadOnlyEntityException>(() => 
-                readOnlyDbSet.Add(readonlyProduct));
+            var exception = Assert.Throws<ReadOnlyEntityException>(() => readOnlyDbSet.Add(readonlyProduct));
             
             exception.Should().NotBeNull();
         }
