@@ -593,7 +593,7 @@ context.LegacySystems.Add(new LegacySystem { Id = 1 }); // Throws ReadOnlyEntity
 
 ## ReadOnlyDbSet - Fail-Fast Protection
 
-`ReadOnlyDbSet<TEntity, TId>` is a lightweight wrapper around `DbSet<T>` that provides immediate validation for read-only entities.
+`ReadOnlyDbSet<TEntity, TId>` is a lightweight wrapper around `DbSet<T>` that provides immediate validation for read-only entities with full async/await support through extension methods.
 
 ### Design Philosophy
 
@@ -617,21 +617,24 @@ Your Entity (e.g., LegacySystem)
     ↓
 DbSet<TEntity>
     ↓
-ReadOnlyDbSet<TEntity, TId> (wrapper with implicit conversion)
+ReadOnlyDbSet<TEntity, TId> (wrapper with IQueryable + extension methods)
 ```
 
 ### Implementation
 
-The wrapper uses **composition + implicit conversion**:
+The wrapper implements `IQueryable<T>` and provides extension methods for async operations:
 
 ```csharp
-public class ReadOnlyDbSet<TEntity, TId> where TEntity : class, IReadOnlyEntity<TId>
+public class ReadOnlyDbSet<TEntity, TId> : IQueryable<TEntity>
+    where TEntity : class, IReadOnlyEntity<TId>
 {
     private readonly DbSet<TEntity> innerDbSet;
+    internal DbSet<TEntity> InnerDbSet => innerDbSet;
 
-    // Implicit conversion to DbSet for query operations
-    public static implicit operator DbSet<TEntity>(ReadOnlyDbSet<TEntity, TId> readOnlySet)
-        => readOnlySet.innerDbSet;
+    // IQueryable implementation forwards to inner DbSet
+    public Type ElementType => ((IQueryable<TEntity>)innerDbSet).ElementType;
+    public Expression Expression => ((IQueryable<TEntity>)innerDbSet).Expression;
+    public IQueryProvider Provider => ((IQueryable<TEntity>)innerDbSet).Provider;
 
     // All write operations throw immediately
     public EntityEntry<TEntity> Add(TEntity entity)
@@ -639,11 +642,24 @@ public class ReadOnlyDbSet<TEntity, TId> where TEntity : class, IReadOnlyEntity<
     
     // ... other write operations
 }
+
+// Extension methods provide async support without casting
+public static class ReadOnlyDbSetExtensions
+{
+    public static Task<List<TEntity>> ToListAsync<TEntity, TId>(
+        this ReadOnlyDbSet<TEntity, TId> source,
+        CancellationToken cancellationToken = default)
+        where TEntity : class, IReadOnlyEntity<TId>
+    {
+        return source.InnerDbSet.ToListAsync(cancellationToken);
+    }
+    // ... other async methods
+}
 ```
 
 ### Usage Patterns
 
-#### Option 1: DbContext Property (Recommended)
+#### DbContext Property (Recommended)
 
 ```csharp
 public class MyDbContext : DbContextBase<Guid>
@@ -653,15 +669,17 @@ public class MyDbContext : DbContextBase<Guid>
         => Set<LegacySystem>().AsReadOnly<LegacySystem, int>();
 }
 
-// Usage - queries work seamlessly
+// Usage - NO CASTING REQUIRED! Extension methods work directly
 var systems = await context.LegacySystems.ToListAsync();
-var system = await context.LegacySystems.FindAsync(123);
+var system = await context.LegacySystems.FirstOrDefaultAsync(s => s.Id == 123);
+var count = await context.LegacySystems.CountAsync();
+var exists = await context.LegacySystems.AnyAsync(s => s.Name.Contains("Legacy"));
 
 // Write operations throw immediately
 context.LegacySystems.Add(system); // ❌ ReadOnlyEntityException thrown here
 ```
 
-#### Option 2: On-Demand Conversion
+#### On-Demand Conversion
 
 ```csharp
 public class MyDbContext : DbContextBase<Guid>
@@ -676,29 +694,32 @@ var systems = await readOnlySet.ToListAsync();
 
 ### Query Operations (Allowed)
 
-All query operations work normally through implicit conversion:
+All query operations work seamlessly through `IQueryable<T>` and extension methods:
 
 ```csharp
-// Basic queries
+// Async queries - NO CASTING REQUIRED
 var all = await context.LegacySystems.ToListAsync();
-var one = await context.LegacySystems.FindAsync(123);
+var array = await context.LegacySystems.ToArrayAsync();
 
-// LINQ queries
+// Async predicates
+var first = await context.LegacySystems.FirstAsync(s => s.Id == 123);
+var firstOrDefault = await context.LegacySystems.FirstOrDefaultAsync(s => s.Name == "Test");
+var single = await context.LegacySystems.SingleAsync(s => s.Id == 123);
+
+// Async checks
+var exists = await context.LegacySystems.AnyAsync(s => s.IsActive);
+var count = await context.LegacySystems.CountAsync(s => s.CreatedOn > DateTime.UtcNow.AddDays(-7));
+
+// LINQ queries (synchronous composition, async execution)
 var filtered = await context.LegacySystems
     .Where(s => s.SystemName.Contains("Legacy"))
     .OrderBy(s => s.CreatedDate)
     .Skip(10)
     .Take(20)
-    .ToListAsync();
-
-// Async enumeration
-await foreach (var system in context.LegacySystems.AsAsyncEnumerable())
-{
-    Console.WriteLine(system.SystemName);
-}
+    .ToListAsync(); // Extension method - no casting needed!
 
 // IQueryable operations
-var queryable = context.LegacySystems.AsQueryable();
+var queryable = context.LegacySystems.Where(s => s.IsActive);
 ```
 
 ### Write Operations (Blocked)
@@ -724,13 +745,36 @@ readOnlySet.Attach(system);
 readOnlySet.AttachRange(systems);
 ```
 
+### Available Extension Methods
+
+`ReadOnlyDbSet` provides the following async extension methods (no casting required):
+
+**Query Methods:**
+- `ToListAsync()` / `ToArrayAsync()` - Materialize results
+- `FirstAsync()` / `FirstOrDefaultAsync()` - Get first element
+- `SingleAsync()` / `SingleOrDefaultAsync()` - Get single element
+- `AnyAsync()` - Check if any elements exist
+- `CountAsync()` - Count elements
+
+All methods support optional predicates and `CancellationToken`:
+
+```csharp
+// With predicates
+var active = await context.LegacySystems.FirstOrDefaultAsync(s => s.IsActive);
+var count = await context.LegacySystems.CountAsync(s => s.CreatedOn > startDate);
+
+// With cancellation
+var systems = await context.LegacySystems.ToListAsync(cancellationToken);
+```
+
 ### Benefits
 
-1. **Fail-Fast Behavior**: Errors caught immediately at the point of invalid operation
-2. **Clear Intent**: Using `ReadOnlyDbSet` makes read-only semantics explicit
-3. **Better Developer Experience**: IDE autocomplete shows only valid operations
-4. **Defense in Depth**: Works alongside `SaveChanges()` validation as a second layer
-5. **Zero Performance Overhead**: Implicit conversion means no runtime cost for queries
+1. **No Casting Required**: Extension methods work directly on `ReadOnlyDbSet<T, TId>`
+2. **Fail-Fast Behavior**: Errors caught immediately at the point of invalid operation
+3. **Clear Intent**: Using `ReadOnlyDbSet` makes read-only semantics explicit
+4. **Full Async Support**: All common EF Core async operations available
+5. **Defense in Depth**: Works alongside `SaveChanges()` validation as a second layer
+6. **IntelliSense Friendly**: Extension methods show up in IDE autocomplete
 
 ### Comparison Table
 
@@ -740,6 +784,7 @@ readOnlySet.AttachRange(systems);
 | **Error Location** | Exact line of invalid operation | Inside SaveChanges |
 | **Stack Trace** | Points to problematic code | Points to SaveChanges |
 | **Prevention** | Prevents tracking entirely | Validates tracked entities |
+| **Casting Required** | No - extension methods | N/A |
 | **Use Case** | Proactive protection | Safety net |
 | **Developer Feedback** | Immediate, clear | Delayed, less clear |
 
@@ -749,6 +794,7 @@ readOnlySet.AttachRange(systems);
 2. **Keep SaveChanges validation** - Don't remove deferred validation; it's a safety net
 3. **Consistent naming** - Use clear names like `LegacySystems` to indicate read-only intent
 4. **Document intent** - Add XML comments explaining why entities are read-only
+5. **Leverage extension methods** - Use provided async methods instead of casting
 
 ```csharp
 /// <summary>
@@ -759,18 +805,14 @@ public ReadOnlyDbSet<LegacySystem, int> LegacySystems
     => Set<LegacySystem>().AsReadOnly<LegacySystem, int>();
 ```
 
-### Handling Explicit Casts
+### Advanced: Explicit Conversion
 
-For some operations, you may need explicit casts:
+For rare cases requiring `DbSet<T>` directly (e.g., accessing `Local` collection):
 
 ```csharp
-// When calling DbSet-specific methods
-DbSet<LegacySystem> dbSet = context.LegacySystems;
+// Explicit cast when absolutely necessary
+DbSet<LegacySystem> dbSet = (DbSet<LegacySystem>)context.LegacySystems;
 var local = dbSet.Local; // Access Local collection
-
-// When calling extension methods that don't work with implicit conversion
-var paginated = await ((DbSet<LegacySystem>)context.LegacySystems)
-    .ToPaginatedListAsync(page: 1, size: 50);
 ```
 
 ## Automatic User ID Resolution

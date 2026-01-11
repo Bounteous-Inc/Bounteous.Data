@@ -61,9 +61,8 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
             
-            // Implicit conversion to DbSet - all async operations work
-            DbSet<ReadOnlyLegacyProduct> queryable = readOnlySet;
-            var products = await queryable.ToListAsync();
+            // ReadOnlyDbSet implements IQueryable - all async operations work directly
+            var products = await readOnlySet.ToListAsync();
             
             products.Should().NotBeNull();
         }
@@ -76,9 +75,8 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
             
-            // Implicit conversion enables full LINQ support
-            DbSet<ReadOnlyLegacyProduct> queryable = readOnlySet;
-            var result = await queryable
+            // ReadOnlyDbSet implements IQueryable - full LINQ support works directly
+            var result = await readOnlySet
                 .Where(p => p.Category == "Electronics")
                 .Where(p => p.Price > 100m)
                 .ToListAsync();
@@ -297,8 +295,8 @@ public class ReadOnlyDbSetTests : DbContextTestBase
         {
             var readOnlySet = context.Set<ReadOnlyLegacyProduct>().AsReadOnly<ReadOnlyLegacyProduct, long>();
             
-            DbSet<ReadOnlyLegacyProduct> dbSet = readOnlySet;
-            IQueryable<ReadOnlyLegacyProduct> queryable = dbSet;
+            // ReadOnlyDbSet implements IQueryable directly
+            IQueryable<ReadOnlyLegacyProduct> queryable = readOnlySet;
             queryable.Should().NotBeNull();
             queryable.ElementType.Should().Be(typeof(ReadOnlyLegacyProduct));
             queryable.Expression.Should().NotBeNull();
