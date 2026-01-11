@@ -189,6 +189,97 @@ context.LegacySystems.Add(new LegacySystem { Id = 1 }); // ❌ Throws immediatel
 - ✅ Clear intent - explicit read-only semantics in code
 - ✅ Defense in depth - two layers of protection
 
+### Testing with Read-Only Entities
+
+For unit tests that need to seed read-only entities into an in-memory database, use the fluent API:
+
+```csharp
+using Bounteous.Data.Extensions;
+
+[Fact]
+public async Task Test_With_ReadOnly_Data()
+{
+    await using var context = CreateTestContext();
+    
+    // Suppress validation during test data seeding - fluent API
+    using var scope = context.SuppressReadOnlyValidation();
+    
+    context.LegacySystems.Add(new LegacySystem 
+    { 
+        Id = 1, 
+        SystemName = "Test System" 
+    });
+    await context.SaveChangesAsync(); // ✅ Succeeds within scope
+    
+    // Validation automatically re-enabled after scope disposal
+}
+```
+
+**Alternative syntax:**
+```csharp
+// Direct instantiation (still supported)
+using (new ReadOnlyValidationScope())
+{
+    // ...
+}
+```
+
+**Key Points:**
+- ✅ Validation is **always enforced by default** in production
+- ✅ Scope provides **explicit, self-documenting** test intent
+- ✅ Thread-safe using `AsyncLocal<T>` for async operations
+- ✅ Automatically re-enables validation when disposed
+
+### Read-Only Request Workflows
+
+For query-only operations (GET endpoints, reports, list views), use the fluent API to enforce that no data modifications occur:
+
+```csharp
+using Bounteous.Data.Extensions;
+
+public class CompanyService
+{
+    public async Task<List<Company>> GetCompaniesAsync()
+    {
+        await using var context = _contextFactory.Create();
+        
+        // Enforce read-only mode for this entire request - fluent API
+        using var scope = context.EnforceReadOnly();
+        
+        // Only queries allowed
+        return await context.Companies
+            .OrderBy(c => c.Name)
+            .ToListAsync();
+        
+        // Any SaveChanges() call will throw InvalidOperationException
+    }
+}
+```
+
+**Alternative syntax:**
+```csharp
+// Direct instantiation (still supported)
+using (new ReadOnlyRequestScope())
+{
+    // ...
+}
+```
+
+**Benefits:**
+- ✅ **Prevents accidental modifications** in query-only workflows
+- ✅ **Fail-fast protection** - catches bugs at SaveChanges
+- ✅ **Self-documenting code** - clearly marks read-only operations
+- ✅ **Thread-safe** with `AsyncLocal<T>` for concurrent requests
+
+**Comparison:**
+
+| Feature | ReadOnlyValidationScope | ReadOnlyRequestScope |
+|---------|------------------------|---------------------|
+| Purpose | Suppress validation for test seeding | Enforce read-only for query operations |
+| When to use | Unit tests only | Production query endpoints |
+| Effect | Allows modifications to readonly entities | Blocks ALL modifications |
+| Throws on SaveChanges | No (suppresses) | Yes (enforces) |
+
 ## Comprehensive Documentation
 
 For detailed documentation including:

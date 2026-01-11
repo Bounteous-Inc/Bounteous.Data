@@ -77,17 +77,9 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
         base.ConfigureConventions(configurationBuilder);
     }
     
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        ValidateReadOnlyEntities();
-        ApplyAuditVisitor();
-        var saved = await base.SaveChangesAsync(cancellationToken);
-        observer?.OnSaved();
-        return saved;
-    }
-
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
+        ValidateReadOnlyRequest();
         ValidateReadOnlyEntities();
         ApplyAuditVisitor();
         var saved = base.SaveChanges(acceptAllChangesOnSuccess);
@@ -95,8 +87,51 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
         return saved;
     }
 
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ValidateReadOnlyRequest();
+        ValidateReadOnlyEntities();
+        ApplyAuditVisitor();
+        var saved = await base.SaveChangesAsync(cancellationToken);
+        observer?.OnSaved();
+        return saved;
+    }
+
+    private void ValidateReadOnlyRequest()
+    {
+        if (ReadOnlyRequestScope.IsActive)
+        {
+            var modifiedEntities = ChangeTracker
+                .Entries()
+                .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+                .Select(e => new { e.Entity.GetType().Name, e.State })
+                .ToList();
+
+            if (modifiedEntities.Any())
+            {
+                var entityDetails = string.Join(", ", 
+                    modifiedEntities.Select(e => $"{e.Name} ({e.State})"));
+                
+                throw new InvalidOperationException(
+                    $"Cannot save changes within a read-only request scope. " +
+                    $"This operation is marked as query-only. " +
+                    $"Modified entities: {entityDetails}");
+            }
+
+            throw new InvalidOperationException(
+                "Cannot save changes within a read-only request scope. " +
+                "This operation is marked as query-only.");
+        }
+    }
+
     private void ValidateReadOnlyEntities()
     {
+        // Skip validation if explicitly suppressed (e.g., for test data seeding)
+        if (ReadOnlyValidationScope.IsSuppressed)
+        {
+            return;
+        }
+
         var readOnlyViolations = ChangeTracker
             .Entries()
             .Where(e => e.Entity.GetType().GetInterfaces()
