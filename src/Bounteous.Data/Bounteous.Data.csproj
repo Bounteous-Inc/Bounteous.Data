@@ -5,6 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <Version>0.0.21</Version>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -23,7 +24,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="docs/README.md" Pack="true" PackagePath="" />
+        <!-- Include README.md in NuGet package root for NuGet.org rendering -->
+        <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+        <!-- Keep docs/README.md for detailed documentation -->
+        <None Update="docs/README.md" Pack="true" PackagePath="docs\" />
     </ItemGroup>
     <ItemGroup>
       <Content Update="docs\README.md">

@@ -97,6 +97,12 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
 
     private void ValidateReadOnlyEntities()
     {
+        // Skip validation if explicitly suppressed (e.g., for test data seeding)
+        if (ReadOnlyValidationScope.IsSuppressed)
+        {
+            return;
+        }
+
         var readOnlyViolations = ChangeTracker
             .Entries()
             .Where(e => e.Entity.GetType().GetInterfaces()

@@ -189,6 +189,41 @@ context.LegacySystems.Add(new LegacySystem { Id = 1 }); // ❌ Throws immediatel
 - ✅ Clear intent - explicit read-only semantics in code
 - ✅ Defense in depth - two layers of protection
 
+### Testing with Read-Only Entities
+
+For unit tests that need to seed read-only entities into an in-memory database, use `ReadOnlyValidationScope`:
+
+```csharp
+using Bounteous.Data;
+
+[Fact]
+public async Task Test_With_ReadOnly_Data()
+{
+    await using var context = CreateTestContext();
+    
+    // Suppress validation during test data seeding
+    using (new ReadOnlyValidationScope())
+    {
+        context.LegacySystems.Add(new LegacySystem 
+        { 
+            Id = 1, 
+            SystemName = "Test System" 
+        });
+        await context.SaveChangesAsync(); // ✅ Succeeds within scope
+    }
+    
+    // Validation automatically re-enabled after scope
+    var system = await context.LegacySystems.FindAsync(1);
+    system.SystemName = "Modified"; // ❌ Will throw on SaveChanges
+}
+```
+
+**Key Points:**
+- ✅ Validation is **always enforced by default** in production
+- ✅ Scope provides **explicit, self-documenting** test intent
+- ✅ Thread-safe using `AsyncLocal<T>` for async operations
+- ✅ Automatically re-enables validation when disposed
+
 ## Comprehensive Documentation
 
 For detailed documentation including:
