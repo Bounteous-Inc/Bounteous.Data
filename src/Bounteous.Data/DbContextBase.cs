@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bounteous.Data;
 
-public interface IDbContext<TUserId> where TUserId : struct
+public interface IDbContext<in TUserId> where TUserId : struct
 {
     IDbContext<TUserId> WithUserId(TUserId userId);
 }
