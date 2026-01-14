@@ -182,12 +182,24 @@ public ReadOnlyDbSet<LegacySystem, int> LegacySystems
 
 // Error occurs immediately
 context.LegacySystems.Add(new LegacySystem { Id = 1 }); // ❌ Throws immediately
+
+// Safe async operations work directly on the ReadOnlyDbSet
+var count = await context.LegacySystems.CountAsync();
+var first = await context.LegacySystems.FirstOrDefaultAsync(s => s.IsActive);
+var hasAny = await context.LegacySystems.AnyAsync(s => s.SystemName.Contains("Legacy"));
+
+// LINQ queries work through IQueryable implementation
+var filteredCount = await context.LegacySystems
+    .Where(s => s.SystemName.StartsWith("Legacy"))
+    .CountAsync();
 ```
 
 **Benefits:**
 - ✅ Fail-fast behavior - errors caught at the point of invalid operation
 - ✅ Clear intent - explicit read-only semantics in code
+- ✅ Safe async operations - built-in methods for single-value queries
 - ✅ Defense in depth - two layers of protection
+- ✅ Performance safe - no methods that can load entire tables
 
 ### Testing with Read-Only Entities
 

@@ -35,26 +35,25 @@ public class Feature14_ReadOnlyDbSetDemo : FeatureDemoBase
         {
             var readOnlySet = context.Set<LegacySystem>().AsReadOnly<LegacySystem, int>();
 
-            LogFeature("READONLY-DBSET", "✓ Async queries work directly via extension methods:");
+            LogFeature("READONLY-DBSET", "✓ Safe async queries work directly via extension methods:");
             
-            // ToListAsync - no casting needed
-            var systems = await readOnlySet.ToListAsync();
-            LogFeature("READONLY-DBSET", "  - ToListAsync(): {Count} systems", systems.Count);
-
-            // CountAsync - no casting needed
+            // CountAsync - safe for any table size
             var count = await readOnlySet.CountAsync();
             LogFeature("READONLY-DBSET", "  - CountAsync(): {Count}", count);
 
-            // AnyAsync with predicate - no casting needed
+            // AnyAsync with predicate - safe for any table size
             var hasActive = await readOnlySet.AnyAsync(s => s.SystemName.Contains("Legacy"));
             LogFeature("READONLY-DBSET", "  - AnyAsync(predicate): {HasActive}", hasActive);
 
-            // LINQ composition with async execution - no casting needed
-            var filtered = await readOnlySet
+            // FirstOrDefaultAsync with predicate - safe for any table size
+            var firstSystem = await readOnlySet.FirstOrDefaultAsync(s => s.SystemName.Contains("Legacy"));
+            LogFeature("READONLY-DBSET", "  - FirstOrDefaultAsync(): {System}", firstSystem?.SystemName ?? "None");
+
+            // LINQ composition with safe async execution
+            var filteredCount = await readOnlySet
                 .Where(s => s.SystemName.StartsWith("Legacy"))
-                .OrderBy(s => s.SystemName)
-                .ToListAsync();
-            LogFeature("READONLY-DBSET", "  - LINQ + ToListAsync(): {Count} filtered", filtered.Count);
+                .CountAsync();
+            LogFeature("READONLY-DBSET", "  - LINQ + CountAsync(): {Count} filtered", filteredCount);
         }
 
         // Demonstrate write protection - throws immediately
@@ -81,7 +80,7 @@ public class Feature14_ReadOnlyDbSetDemo : FeatureDemoBase
                 readOnlySet.Update(system);
                 LogFeature("READONLY-DBSET", "  - ❌ Update() should have thrown!");
             }
-            catch (ReadOnlyEntityException ex)
+            catch (ReadOnlyEntityException)
             {
                 LogFeature("READONLY-DBSET", "  - Update() threw ReadOnlyEntityException ✓");
             }
@@ -92,7 +91,7 @@ public class Feature14_ReadOnlyDbSetDemo : FeatureDemoBase
                 readOnlySet.Remove(system);
                 LogFeature("READONLY-DBSET", "  - ❌ Remove() should have thrown!");
             }
-            catch (ReadOnlyEntityException ex)
+            catch (ReadOnlyEntityException)
             {
                 LogFeature("READONLY-DBSET", "  - Remove() threw ReadOnlyEntityException ✓");
             }
