@@ -12,10 +12,12 @@ public class TestDbContextLong : DbContextBase<long>
 
     public DbSet<ProductWithLongUserId> Products { get; set; } = null!;
     public DbSet<CustomerWithLongUserId> Customers { get; set; } = null!;
+    public DbSet<TempLog> TempLogs { get; set; } = null!;
 
     protected override void RegisterModels(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ProductWithLongUserId>();
         modelBuilder.Entity<CustomerWithLongUserId>();
+        modelBuilder.Entity<TempLog>();
     }
 }

@@ -46,4 +46,8 @@ public static class QueryableExtensions
         var entity = await query.FirstOrDefaultAsync(e => EF.Property<TId>(e, "Id")!.Equals(id));
         return entity ?? throw new NotFoundException<T, TId>(id);
     }
+
+    public static IQueryable<T> IncludeDeleted<T>(this IQueryable<T> query) 
+        where T : class, ISoftDelete
+        => query.IgnoreQueryFilters();
 }

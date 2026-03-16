@@ -44,13 +44,16 @@ public class AuditVisitor<TUserId> : IAuditVisitor<TUserId>
 
     public void AcceptDeleted(EntityEntry entry, TUserId? userId)
     {
-        if(entry.Entity is not IAuditableMarker<TUserId> auditableEntry) return;
+        if(entry.Entity is not ISoftDelete softDeleteEntity) return;
         
-        ((IDeleteable) entry.Entity).IsDeleted = true;
+        softDeleteEntity.IsDeleted = true;
         entry.State = EntityState.Modified;
-        auditableEntry.ModifiedOn = Clock.Utc.Now;
-
-        if (!userId.HasValue) return;
-        auditableEntry.ModifiedBy = userId.Value;
+        
+        if(entry.Entity is IAuditableMarker<TUserId> auditableEntry)
+        {
+            auditableEntry.ModifiedOn = Clock.Utc.Now;
+            if (userId.HasValue)
+                auditableEntry.ModifiedBy = userId.Value;
+        }
     }
 }

@@ -7,7 +7,7 @@ public abstract class AuditBase : AuditBase<Guid, Guid>
     public AuditBase() => Id = Guid.NewGuid();
 }
 
-public abstract class AuditBase<TId, TUserId> : IAuditable<TId, TUserId>, IDeleteable
+public abstract class AuditBase<TId, TUserId> : IAuditable<TId, TUserId>
     where TUserId : struct
 {
     public TId Id { get; set; } = default!;
@@ -17,5 +17,4 @@ public abstract class AuditBase<TId, TUserId> : IAuditable<TId, TUserId>, IDelet
     public TUserId ModifiedBy { get; set; }
     public DateTime ModifiedOn { get; set; }
     public int Version { get; set; }
-    public bool IsDeleted { get; set; }
 }

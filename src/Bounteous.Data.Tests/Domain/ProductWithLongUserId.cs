@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using Bounteous.Data.Domain.Entities;
+using Bounteous.Data.Domain.Interfaces;
 
 namespace Bounteous.Data.Tests.Domain;
 
-public class ProductWithLongUserId : AuditBase<Guid, long>
+public class ProductWithLongUserId : AuditBase<Guid, long>, ISoftDelete
 {
+    public bool IsDeleted { get; set; }
     public ProductWithLongUserId() => Id = Guid.NewGuid();
     
     [MaxLength(100)]

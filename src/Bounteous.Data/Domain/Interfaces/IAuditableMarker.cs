@@ -9,5 +9,4 @@ public interface IAuditableMarker<TUserId>
     DateTime SynchronizedOn { get; set; }
     TUserId ModifiedBy { get; set; }
     int Version { get; set; }
-    bool IsDeleted { get; set; }
 }
