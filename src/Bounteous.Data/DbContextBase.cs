@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Bounteous.Core.Extensions;
 using Bounteous.Data.Audit;
 using Bounteous.Data.Converters;
+using Bounteous.Data.Deletion;
 using Bounteous.Data.Domain.Interfaces;
 using Bounteous.Data.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
     private readonly AuditVisitor<TUserId> auditVisitor;
     private readonly IDbContextObserver? observer;
     private readonly IIdentityProvider<TUserId> identityProvider;
+    private readonly DeletionStrategy deletionStrategy;
     private TUserId TokenUserId { get; set; }
 
     protected DbContextBase(
@@ -30,6 +32,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
         auditVisitor = new AuditVisitor<TUserId>();
         this.observer = observer;
         this.identityProvider = identityProvider;
+        deletionStrategy = new DeletionStrategy();
         
         if (this.observer == null) return;
 
@@ -123,6 +126,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
     {
         ValidateReadOnlyRequest();
         ValidateReadOnlyEntities();
+        deletionStrategy.ApplyCascadeSoftDelete(ChangeTracker);
         ApplyAuditVisitor();
         var saved = base.SaveChanges(acceptAllChangesOnSuccess);
         observer?.OnSaved();
@@ -133,6 +137,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
     {
         ValidateReadOnlyRequest();
         ValidateReadOnlyEntities();
+        deletionStrategy.ApplyCascadeSoftDelete(ChangeTracker);
         ApplyAuditVisitor();
         var saved = await base.SaveChangesAsync(cancellationToken);
         observer?.OnSaved();
