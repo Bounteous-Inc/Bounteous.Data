@@ -5,17 +5,19 @@ namespace Bounteous.Data.Tests.Context;
 
 public class TestDbContextLong : DbContextBase<long>
 {
-    public TestDbContextLong(DbContextOptions options, IDbContextObserver observer, IIdentityProvider<long> identityProvider)
+    public TestDbContextLong(DbContextOptions options, IDbContextObserver? observer, IIdentityProvider<long> identityProvider)
         : base(options, observer, identityProvider)
     {
     }
 
     public DbSet<ProductWithLongUserId> Products { get; set; } = null!;
     public DbSet<CustomerWithLongUserId> Customers { get; set; } = null!;
+    public DbSet<TempLog> TempLogs { get; set; } = null!;
 
     protected override void RegisterModels(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<ProductWithLongUserId>();
         modelBuilder.Entity<CustomerWithLongUserId>();
+        modelBuilder.Entity<TempLog>();
     }
 }

@@ -44,4 +44,29 @@ public static class DbContextExtensions
     public static DbSet<TDomain> DbSet<TDomain, TId>(this DbContext dbContext) 
         where TDomain : class, IAuditable<TId, Guid>, new()
         => dbContext.Set<TDomain>();
+
+    public static void RemovePhysically<TEntity>(this DbContext dbContext, TEntity entity)
+        where TEntity : class
+    {
+        var entry = dbContext.Entry(entity);
+        if (entry.State == Microsoft.EntityFrameworkCore.EntityState.Deleted)
+        {
+            entry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+        }
+        dbContext.Set<TEntity>().Remove(entity);
+    }
+
+    public static void RemoveRangePhysically<TEntity>(this DbContext dbContext, IEnumerable<TEntity> entities)
+        where TEntity : class
+    {
+        foreach (var entity in entities)
+        {
+            var entry = dbContext.Entry(entity);
+            if (entry.State == Microsoft.EntityFrameworkCore.EntityState.Deleted)
+            {
+                entry.State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+            }
+        }
+        dbContext.Set<TEntity>().RemoveRange(entities);
+    }
 }

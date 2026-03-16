@@ -18,6 +18,8 @@ public class TestDbContext : DbContextBase<Guid>, IDbContext<Guid>
     public DbSet<LegacyCategory> LegacyCategories { get; set; }
     public DbSet<ReadOnlyLegacyProduct> ReadOnlyLegacyProducts { get; set; }
     public DbSet<ReadOnlyLegacyCustomer> ReadOnlyLegacyCustomers { get; set; }
+    public DbSet<Project> Projects { get; set; }
+    public DbSet<ProjectFile> ProjectFiles { get; set; }
 
     protected override void RegisterModels(ModelBuilder modelBuilder)
     {

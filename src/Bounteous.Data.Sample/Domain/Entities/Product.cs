@@ -1,11 +1,13 @@
 using Bounteous.Data.Domain.Entities;
+using Bounteous.Data.Domain.Interfaces;
 using Bounteous.Data.Sample.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Bounteous.Data.Sample.Domain.Entities;
 
-public class Product : AuditBase
+public class Product : AuditBase, ISoftDelete
 {
+    public bool IsDeleted { get; set; }
     [MaxLength(200)]
     public string Name { get; set; } = string.Empty;
     

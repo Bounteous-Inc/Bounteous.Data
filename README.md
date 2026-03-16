@@ -10,11 +10,12 @@ Bounteous.Data enhances Entity Framework Core with enterprise-grade features for
 
 - ✅ **Automatic Auditing** - CreatedBy, ModifiedBy, Version tracking with zero boilerplate
 - ✅ **Flexible ID Strategies** - Support for Guid, long, int for both entities and users
+- ✅ **Deletion Strategies** - Explicit soft delete (ISoftDelete) or physical delete (IHardDelete) per entity
+- ✅ **GDPR Compliance** - Force physical deletion with `Delete()` method for "right to be forgotten"
 - ✅ **Read-Only Protection** - Two-layer defense (immediate + deferred validation)
 - ✅ **ReadOnlyDbSet** - Fail-fast wrapper that throws exceptions immediately on write operations
 - ✅ **Automatic User Resolution** - IIdentityProvider integration for seamless auth
-- ✅ **Soft Delete Support** - Logical deletion maintaining referential integrity
-- ✅ **Query Extensions** - WhereIf, IncludeIf, pagination, FindById helpers
+- ✅ **Query Extensions** - WhereIf, IncludeIf, IncludeDeleted, pagination, FindById helpers
 - ✅ **Observer Pattern** - Entity lifecycle events for logging and business rules
 - ✅ **Type Safety** - Compile-time checking for ID types and audit fields
 
@@ -54,17 +55,27 @@ public void ConfigureServices(IServiceCollection services)
 
 ```csharp
 using Bounteous.Data.Domain.Entities;
+using Bounteous.Data.Domain.Interfaces;
 
-// Modern entity with Guid ID and full audit support
-public class Customer : AuditBase
+// Soft delete entity - marked as deleted but retained in database
+public class Customer : AuditBase, ISoftDelete
 {
+    public bool IsDeleted { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
 }
 
-// Legacy entity with long ID
-public class LegacyProduct : AuditBase<long, Guid>
+// Physical delete entity - permanently removed from database
+public class TempLog : AuditBase, IHardDelete
 {
+    public string Message { get; set; } = string.Empty;
+    public DateTime LoggedAt { get; set; }
+}
+
+// Legacy entity with long ID and soft delete
+public class LegacyProduct : AuditBase<long, Guid>, ISoftDelete
+{
+    public bool IsDeleted { get; set; }
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
 }
@@ -75,6 +86,8 @@ public class LegacySystem : ReadOnlyEntityBase<int>
     public string SystemName { get; set; } = string.Empty;
 }
 ```
+
+**Important:** All entities inheriting from `AuditBase` **must** implement either `ISoftDelete` or `IHardDelete`. This is validated at configuration time.
 
 ### 3. Create Your DbContext
 
@@ -156,6 +169,117 @@ entity.ModifiedBy = currentUserId;
 entity.ModifiedOn = DateTime.UtcNow;
 entity.Version++;                      // Incremented for optimistic concurrency
 ```
+
+## Deletion Strategies
+
+Bounteous.Data provides explicit deletion strategies using marker interfaces. Every entity inheriting from `AuditBase` must choose either soft delete or physical delete.
+
+### Soft Delete (ISoftDelete)
+
+Entities marked with `ISoftDelete` are **logically deleted** - they remain in the database with `IsDeleted = true` and are automatically excluded from queries.
+
+```csharp
+public class Customer : AuditBase, ISoftDelete
+{
+    public bool IsDeleted { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+// Usage - Soft Delete
+var customer = await context.Customers.FindAsync(id);
+context.Customers.Remove(customer);
+await context.SaveChangesAsync();
+
+// Customer is soft-deleted (IsDeleted = true)
+// Won't appear in normal queries
+var customers = await context.Customers.ToListAsync(); // Excludes soft-deleted
+
+// Include soft-deleted entities when needed
+var allCustomers = await context.Customers
+    .IncludeDeleted()
+    .ToListAsync();
+```
+
+**Benefits:**
+- ✅ Maintains referential integrity
+- ✅ Audit trail preserved
+- ✅ Regulatory compliance (data retention)
+- ✅ Automatic query filtering
+
+### Physical Delete (IHardDelete)
+
+Entities marked with `IHardDelete` are **permanently deleted** from the database when `Remove()` is called.
+
+```csharp
+public class TempLog : AuditBase, IHardDelete
+{
+    public string Message { get; set; } = string.Empty;
+}
+
+// Usage - Physical Delete
+var log = await context.TempLogs.FindAsync(id);
+context.TempLogs.Remove(log);
+await context.SaveChangesAsync();
+
+// Log is permanently deleted from database
+```
+
+**Use cases:**
+- ✅ Temporary data (logs, cache entries)
+- ✅ Data with no retention requirements
+- ✅ Performance-sensitive scenarios
+
+### GDPR Compliance - Force Physical Delete
+
+For "right to be forgotten" requirements, soft-delete entities can be force-deleted using the `Delete()` extension method:
+
+```csharp
+using Bounteous.Data.Extensions;
+
+// Force physical deletion of a soft-delete entity
+var customer = await context.Customers.FindAsync(id);
+context.Customers.Delete(customer);  // Forces physical delete
+await context.SaveChangesAsync();
+
+// Customer is permanently removed from database
+
+// Batch deletion
+var customers = await context.Customers
+    .Where(c => c.RequestedDeletion)
+    .ToListAsync();
+context.Customers.DeleteRange(customers);
+await context.SaveChangesAsync();
+```
+
+### Validation Rules
+
+The framework enforces these rules at configuration time:
+
+1. **Mutual Exclusivity**: An entity cannot implement both `ISoftDelete` and `IHardDelete`
+   ```csharp
+   // ❌ This will throw InvalidOperationException
+   public class Invalid : AuditBase, ISoftDelete, IHardDelete { }
+   ```
+
+2. **Required Strategy**: All `AuditBase` entities must implement one deletion strategy
+   ```csharp
+   // ❌ This will throw InvalidOperationException
+   public class Invalid : AuditBase { }
+   
+   // ✅ Must choose one
+   public class Valid : AuditBase, ISoftDelete { }
+   ```
+
+### Query Behavior
+
+**ISoftDelete entities:**
+- Automatically excluded from queries by default
+- Use `.IncludeDeleted()` to include soft-deleted entities
+- Use `.IgnoreQueryFilters()` for raw access
+
+**IHardDelete entities:**
+- No query filtering applied
+- Standard EF Core behavior
 
 ## Read-Only Entity Protection
 

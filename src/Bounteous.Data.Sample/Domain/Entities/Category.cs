@@ -1,10 +1,12 @@
 using Bounteous.Data.Domain.Entities;
+using Bounteous.Data.Domain.Interfaces;
 using System.ComponentModel.DataAnnotations;
 
 namespace Bounteous.Data.Sample.Domain.Entities;
 
-public class Category : AuditBase<long, Guid>
+public class Category : AuditBase<long, Guid>, ISoftDelete
 {
+    public bool IsDeleted { get; set; }
     [MaxLength(100)]
     public string Name { get; set; } = string.Empty;
     

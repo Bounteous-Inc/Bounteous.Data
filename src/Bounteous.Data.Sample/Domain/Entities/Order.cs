@@ -1,11 +1,13 @@
 using Bounteous.Data.Domain.Entities;
+using Bounteous.Data.Domain.Interfaces;
 using Bounteous.Data.Sample.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Bounteous.Data.Sample.Domain.Entities;
 
-public class Order : AuditBase
+public class Order : AuditBase, ISoftDelete
 {
+    public bool IsDeleted { get; set; }
     public Guid CustomerId { get; set; }
     
     [MaxLength(50)]

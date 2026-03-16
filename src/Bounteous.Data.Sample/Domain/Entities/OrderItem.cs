@@ -1,9 +1,11 @@
 using Bounteous.Data.Domain.Entities;
+using Bounteous.Data.Domain.Interfaces;
 
 namespace Bounteous.Data.Sample.Domain.Entities;
 
-public class OrderItem : AuditBase
+public class OrderItem : AuditBase, ISoftDelete
 {
+    public bool IsDeleted { get; set; }
     public Guid OrderId { get; set; }
     
     public Guid ProductId { get; set; }

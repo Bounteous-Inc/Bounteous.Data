@@ -1,6 +1,8 @@
+using System.Linq.Expressions;
 using Bounteous.Core.Extensions;
 using Bounteous.Data.Audit;
 using Bounteous.Data.Converters;
+using Bounteous.Data.Deletion;
 using Bounteous.Data.Domain.Interfaces;
 using Bounteous.Data.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -18,6 +20,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
     private readonly AuditVisitor<TUserId> auditVisitor;
     private readonly IDbContextObserver? observer;
     private readonly IIdentityProvider<TUserId> identityProvider;
+    private readonly DeletionStrategy deletionStrategy;
     private TUserId TokenUserId { get; set; }
 
     protected DbContextBase(
@@ -29,6 +32,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
         auditVisitor = new AuditVisitor<TUserId>();
         this.observer = observer;
         this.identityProvider = identityProvider;
+        deletionStrategy = new DeletionStrategy();
         
         if (this.observer == null) return;
 
@@ -45,7 +49,48 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         RegisterModels(modelBuilder);
+        ValidateDeletionMarkers(modelBuilder);
+        ApplySoftDeleteQueryFilters(modelBuilder);
         base.OnModelCreating(modelBuilder);
+    }
+
+    private void ValidateDeletionMarkers(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var isSoftDelete = typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType);
+            var isHardDelete = typeof(IHardDelete).IsAssignableFrom(entityType.ClrType);
+            
+            if (isSoftDelete && isHardDelete)
+            {
+                throw new InvalidOperationException(
+                    $"Entity '{entityType.ClrType.Name}' cannot implement both ISoftDelete and IHardDelete. " +
+                    "Choose one deletion strategy per entity.");
+            }
+
+            var isAuditBase = typeof(IAuditableMarker<TUserId>).IsAssignableFrom(entityType.ClrType);
+            if (isAuditBase && !isSoftDelete && !isHardDelete)
+            {
+                throw new InvalidOperationException(
+                    $"Entity '{entityType.ClrType.Name}' inherits from AuditBase but does not implement ISoftDelete or IHardDelete. " +
+                    "All auditable entities must explicitly choose a deletion strategy.");
+            }
+        }
+    }
+
+    private void ApplySoftDeleteQueryFilters(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(ISoftDelete).IsAssignableFrom(entityType.ClrType))
+            {
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var property = Expression.Property(parameter, nameof(ISoftDelete.IsDeleted));
+                var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
+                
+                modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
+            }
+        }
     }
 
     public override void Dispose()
@@ -81,6 +126,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
     {
         ValidateReadOnlyRequest();
         ValidateReadOnlyEntities();
+        deletionStrategy.ApplyCascadeSoftDelete(ChangeTracker);
         ApplyAuditVisitor();
         var saved = base.SaveChanges(acceptAllChangesOnSuccess);
         observer?.OnSaved();
@@ -91,6 +137,7 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
     {
         ValidateReadOnlyRequest();
         ValidateReadOnlyEntities();
+        deletionStrategy.ApplyCascadeSoftDelete(ChangeTracker);
         ApplyAuditVisitor();
         var saved = await base.SaveChangesAsync(cancellationToken);
         observer?.OnSaved();
@@ -169,7 +216,8 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
 
         ChangeTracker
             .Entries()
-            .Where(e => e is { Entity: IDeleteable, State: EntityState.Deleted })
+            .Where(e => e is { Entity: ISoftDelete, State: EntityState.Deleted })
+            .Where(e => !((ISoftDelete)e.Entity).IsDeleted) // Skip if already marked deleted (physical delete)
             .ForEach(x => auditVisitor.AcceptDeleted(x, userId));
     }
 
