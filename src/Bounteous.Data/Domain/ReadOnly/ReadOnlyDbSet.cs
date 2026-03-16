@@ -1,6 +1,10 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
 using Bounteous.Data.Domain.Interfaces;
 using Bounteous.Data.Exceptions;
 using Microsoft.EntityFrameworkCore;
@@ -11,16 +15,17 @@ namespace Bounteous.Data.Domain.ReadOnly;
 /// <summary>
 /// A read-only wrapper around DbSet that provides fail-fast write protection.
 /// Throws ReadOnlyEntityException immediately when Add, Remove, Update, or Attach operations are attempted.
-/// Supports LINQ queries and async operations through extension methods.
+/// Supports LINQ queries and safe async operations directly on the class.
 /// 
 /// USAGE:
 /// <code>
 /// public ReadOnlyDbSet&lt;LegacySystem, int&gt; LegacySystems 
 ///     =&gt; Set&lt;LegacySystem&gt;().AsReadOnly&lt;LegacySystem, int&gt;();
 /// 
-/// // Async operations work directly via extension methods:
-/// var systems = await context.LegacySystems.ToListAsync();
+/// // Safe async operations work directly on the ReadOnlyDbSet:
+/// var count = await context.LegacySystems.CountAsync();
 /// var system = await context.LegacySystems.FirstOrDefaultAsync(s => s.Id == 1);
+/// var hasAny = await context.LegacySystems.AnyAsync(s => s.IsActive);
 /// </code>
 /// </summary>
 public class ReadOnlyDbSet<TEntity, TId> : IQueryable<TEntity>
@@ -48,6 +53,43 @@ public class ReadOnlyDbSet<TEntity, TId> : IQueryable<TEntity>
 
     public static explicit operator DbSet<TEntity>(ReadOnlyDbSet<TEntity, TId> readOnlySet)
         => readOnlySet.innerDbSet;
+
+    // Safe async query methods - single value returns only
+    /// <summary>
+    /// Asynchronously returns the first element of a sequence that satisfies a condition, or a default value if no such element is found.
+    /// </summary>
+    public Task<TEntity?> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
+        => innerDbSet.FirstOrDefaultAsync(predicate, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously returns the first element of a sequence, or a default value if no element is found.
+    /// </summary>
+    public Task<TEntity?> FirstOrDefaultAsync(CancellationToken cancellationToken = default)
+        => innerDbSet.FirstOrDefaultAsync(cancellationToken);
+
+    /// <summary>
+    /// Asynchronously determines whether any element of a sequence satisfies a condition.
+    /// </summary>
+    public Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
+        => innerDbSet.AnyAsync(predicate, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously determines whether a sequence contains any elements.
+    /// </summary>
+    public Task<bool> AnyAsync(CancellationToken cancellationToken = default)
+        => innerDbSet.AnyAsync(cancellationToken);
+
+    /// <summary>
+    /// Asynchronously returns the number of elements in a sequence that satisfy a condition.
+    /// </summary>
+    public Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
+        => innerDbSet.CountAsync(predicate, cancellationToken);
+
+    /// <summary>
+    /// Asynchronously returns the number of elements in a sequence.
+    /// </summary>
+    public Task<int> CountAsync(CancellationToken cancellationToken = default)
+        => innerDbSet.CountAsync(cancellationToken);
 
     // Mutating operations - all throw immediately
     public EntityEntry<TEntity> Add(TEntity entity)
