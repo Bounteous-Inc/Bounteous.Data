@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    allow:
+      - dependency-type: "direct"
+    commit-message:
+      prefix: "chore(deps):"
+    pull-request-branch-name:
+      separator: "/"
