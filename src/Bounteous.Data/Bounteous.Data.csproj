@@ -10,13 +10,13 @@
 
     <ItemGroup>
       <PackageReference Include="Bounteous.Core" Version="0.0.21" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.6" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.6">
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.7" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.6" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.6" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.7" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.7" />
     </ItemGroup>
 
     <ItemGroup Condition="Exists('..\..\..\Xerris.Dotnet.Core\src\Xerris.DotNet.Core\Xerris.DotNet.Core.csproj')">
@@ -30,8 +30,8 @@
         <None Update="docs/README.md" Pack="true" PackagePath="docs\" />
     </ItemGroup>
     <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.6" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.6" />
+      <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.7" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.7" />
       <Content Update="docs\README.md">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
