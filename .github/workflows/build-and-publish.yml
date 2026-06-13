@@ -12,79 +12,75 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      
+
       - name: Make script executable
         run: chmod +x run-sample.sh
-      
+
       - name: Run sample application
         run: ./run-sample.sh
-  
-  publish:
+
+  # Build, test, version, tag, and pack via the shared reusable workflow.
+  # It uploads the .nupkg as the "nuget-package" artifact.
+  build-pack:
     needs: run-sample
     if: github.event.pull_request.merged == true
     uses: Bounteous-Inc/bounteous-dotnet-common-workflows/.github/workflows/build-and-publish-to-nuget.yml@main
     with:
       csproj-path: './src/Bounteous.Data/Bounteous.Data.csproj'
-      nuget-package-name: 'bounteous.data'
+      nuget-package-name: 'Bounteous.Data'
       dotnet-version: '10.0.x'
       release-path: 'net10.0'
-    secrets:
-      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-      NUGET_SOURCE_URI: ${{ secrets.NUGET_SOURCE_URI }}
-  
-  update-version:
-    needs: publish
+      build-configuration: 'Release'
+
+  # Publish must run in THIS repo's own workflow (not the reusable one).
+  # NuGet Trusted Publishing cannot match an org-owned package policy when
+  # NuGet/login runs inside a reusable workflow (NuGet/login issue #6), so the
+  # OIDC login + push are done directly here, where job_workflow_ref resolves
+  # to this repository and matches the trust policy.
+  publish:
+    needs: build-pack
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      id-token: write
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Download NuGet package
+        uses: actions/download-artifact@v4
         with:
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Get published version from NuGet
-        id: get-version
+          name: nuget-package
+          path: ./packages
+      - name: NuGet login (OIDC → temp API key)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: Krogg.Bounteous
+      - name: Publish to NuGet
         run: |
-          # Query NuGet API for the latest version
-          PACKAGE_NAME="Bounteous.Data"
-          NUGET_API="https://api.nuget.org/v3-flatcontainer/${PACKAGE_NAME,,}/index.json"
-          
-          # Get the latest version from NuGet
-          LATEST_VERSION=$(curl -s "$NUGET_API" | jq -r '.versions[-1]')
-          echo "Latest version on NuGet: $LATEST_VERSION"
-          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-      
-      - name: Update csproj version
-        run: |
-          VERSION="${{ steps.get-version.outputs.version }}"
-          CSPROJ_PATH="./src/Bounteous.Data/Bounteous.Data.csproj"
-          
-          # Update the version in the csproj file
-          sed -i "s|<Version>.*</Version>|<Version>$VERSION</Version>|g" "$CSPROJ_PATH"
-          
-          echo "Updated $CSPROJ_PATH to version $VERSION"
-      
-      - name: Commit and push version update
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          
-          git add ./src/Bounteous.Data/Bounteous.Data.csproj
-          
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No version changes to commit"
-          else
-            git commit -m "chore: update version to ${{ steps.get-version.outputs.version }} [skip ci]"
-            git push origin main
-            echo "Version updated and committed to main"
+          PACKAGE_FILE=$(find ./packages -name "*.nupkg" | head -n 1)
+          if [ -z "$PACKAGE_FILE" ]; then
+            echo "Error: No .nupkg file found in ./packages directory"
+            exit 1
           fi
-      
+          dotnet nuget push "$PACKAGE_FILE" \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+            --source "https://api.nuget.org/v3/index.json" \
+            --timeout 360 \
+            --skip-duplicate
+
+  # Bump the committed version in the csproj to the just-published version.
+  # No NuGet credentials needed, so this stays in the shared reusable workflow.
+  update-version:
+    needs: [build-pack, publish]
+    if: github.event.pull_request.merged == true
+    uses: Bounteous-Inc/bounteous-dotnet-common-workflows/.github/workflows/update-version.yml@main
+    permissions:
+      contents: write
+    with:
+      nuget-package-name: 'Bounteous.Data'
+      csproj-path: './src/Bounteous.Data/Bounteous.Data.csproj'
+      fallback-version: ${{ needs.build-pack.outputs.next_version }}
