@@ -133,13 +133,16 @@ public abstract class DbContextBase<TUserId> : DbContext, IDbContext<TUserId>
         return saved;
     }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    // EF Core routes SaveChangesAsync(CancellationToken) through this overload,
+    // so every async save goes through the checks below exactly once.
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,
+        CancellationToken cancellationToken = default)
     {
         ValidateReadOnlyRequest();
         ValidateReadOnlyEntities();
         deletionStrategy.ApplyCascadeSoftDelete(ChangeTracker);
         ApplyAuditVisitor();
-        var saved = await base.SaveChangesAsync(cancellationToken);
+        var saved = await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
         observer?.OnSaved();
         return saved;
     }
