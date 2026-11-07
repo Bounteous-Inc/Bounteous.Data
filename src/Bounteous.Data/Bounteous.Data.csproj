@@ -10,14 +10,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Bounteous.Core" Version="0.0.23" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+      <PackageReference Include="Bounteous.Core" Version="0.0.24" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.14" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       </PackageReference>
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.12" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.14" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.14" />
     </ItemGroup>
 
     <ItemGroup Condition="Exists('..\..\..\Xerris.Dotnet.Core\src\Xerris.DotNet.Core\Xerris.DotNet.Core.csproj')">
@@ -31,8 +31,8 @@
         <None Update="docs/README.md" Pack="true" PackagePath="docs\" />
     </ItemGroup>
     <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
-      <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
+      <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.14" />
+      <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
       <PackageReference Include="Serilog" Version="4.4.0" />
       <Content Update="docs\README.md">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
